@@ -194,10 +194,10 @@ async function loadMCQ(page){
     // Makes sure app doesn't crash when API call fails
     
     try{
-        incorrectChoices = await getAIChoices(answer);
+        incorrectChoices = swapCategories(answer);
     }
     catch(error){
-        console.error("AI failed, using fallback:", error);
+        console.error("Generating incorrect choices failed, using fallback:", error);
         incorrectChoices = [scrambleWord(answer), otherRandomPicture(page, choices)];
     }
 
