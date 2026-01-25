@@ -126,20 +126,65 @@ function scrambleWord(choice){
 
 function swapCategories(answer){
    
-    const categories = {};
+    
 
     const answerDocument = nlp(answer);
 
-    const people = answerDocument.people().out('array');
-    const nouns = answerDocument.nouns().out('array');
+    const answerPeople = answerDocument.people().out('array');
+    //const nouns = answerDocument.nouns().out('array');
+    const answerTopics = answerDocument.nouns().out('array');
 
-    console.log("Answer", answer);
-    console.log(answerDocument);
-    console.log("People", people);
-    console.log("Nouns", nouns);
+   
+    let chosenAnswerTopic = answerTopics[Math.floor(Math.random() * (answerTopics.length))];
+    let chosenAnswerPeople = answerPeople[Math.floor(Math.random() * (answerPeople.length))];
 
+    let chosenAnswerTopicSplit = chosenAnswerTopic.split(" ");
+    let answerTopicWord = chosenAnswerTopicSplit[Math.floor(Math.random() * (chosenAnswerTopicSplit.length))];
+    
+    let answerPeopleWord;
 
-    /*const otherPages = pages.filter(page => page !== answer);
+    if(chosenAnswerPeople){
+        let chosenAnswerPeopleSplit = chosenAnswerPeople.split(" ");
+        answerPeopleWord = chosenAnswerPeopleSplit[Math.floor(Math.random() * (chosenAnswerPeopleSplit.length))];
+    }
+    
+
+    const otherPages = pages.filter(page => page !== answer);
+    const incorrectPage = otherPages[Math.floor(Math.random() * (otherPages.length))];
+
+    const incorrectPeople = answerDocument.people().out('array');
+    const incorrectTopics = answerDocument.nouns().out('array');
+
+    let chosenIncorrectTopic = incorrectTopics[Math.floor(Math.random() * (incorrectTopics.length))];
+    let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];
+
+    let chosenIncorrectTopicSplit = chosenIncorrectTopic.split(" ");
+    let incorrectTopicWord = chosenIncorrectTopicSplit[Math.floor(Math.random() * (chosenIncorrectTopicSplit.length))];
+    
+    let incorrectPeopleWord;
+
+    if(chosenIncorrectPeople){
+        let chosenIncorrectPeopleSplit = chosenIncorrectPeople.split(" ");
+        incorrectPeopleWord = chosenIncorrectPeopleSplit[Math.floor(Math.random() * (chosenIncorrectPeopleSplit.length))];
+    }
+
+    let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
+
+    if(answerPeopleWord && incorrectPeopleWord){
+        choice = choice.replaceAll(answerPeopleWord, incorrectPeopleWord);
+
+    }
+
+    console.log("answerTopicWord", answerTopicWord);
+    console.log("answerPeopleWord", answerPeopleWord);
+    console.log("incorrectTopicWord", incorrectTopicWord);
+    console.log("incorrectPeopleWord", incorrectPeopleWord);
+
+    console.log("Choice", choice);
+
+    return choice;
+
+    /*
 
     const randomPage =
 
@@ -202,7 +247,7 @@ async function loadMCQ(page){
     // Makes sure app doesn't crash when API call fails
     
     try{
-        incorrectChoices = swapCategories(answer);
+        incorrectChoices = [swapCategories(answer), swapCategories(answer)];
     }
     catch(error){
         console.error("Generating incorrect choices failed, using fallback:", error);
