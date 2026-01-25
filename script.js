@@ -2,6 +2,7 @@ import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
 
+import nlp from "https://cdn.jsdelivr.net/npm/compromise/+esm";
 
 //import OpenAI from "openai";
 
@@ -124,15 +125,21 @@ function scrambleWord(choice){
 }
 
 function swapCategories(answer){
-    const text = answer.text;
+   
     const categories = {};
 
-    const document = nlp(text);
+    const answerDocument = nlp(answer);
 
-    const people = document.people().out('array');
-    const nouns = document.nouns().out('array');
+    const people = answerDocument.people().out('array');
+    const nouns = answerDocument.nouns().out('array');
 
-    const otherPages = pages.filter(page => page !== answer);
+    console.log("Answer", answer);
+    console.log(answerDocument);
+    console.log("People", people);
+    console.log("Nouns", nouns);
+
+
+    /*const otherPages = pages.filter(page => page !== answer);
 
     const randomPage =
 
@@ -140,7 +147,8 @@ function swapCategories(answer){
 
     });
 
-    replaceAll(randomPage.people())
+    replaceAll(randomPage.people())*/
+    
     
 }
 
