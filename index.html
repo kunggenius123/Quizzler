@@ -14,54 +14,49 @@
 
 </head>
 <body>
-    <h1 id="counter">Correct: </h1>
 
-    <div class="tab-bar">
-        <button onclick="loadMode('mcq')">Multiple Choice</button>
-        <button onclick="loadMode('frq')">Free Response! </button>
-    </div>
+    <nav> 
+        <p> Quizzler </p> 
+    </nav>
 
-    <div class = "container">
-    
-        <!--Free Response-->
-        <div id="frq">
-            <input id = "text-input">
-            <button onclick="checkFRQ()" id = "button-input">Enter</button>
-           
-        </div>
+    <main>
 
-        <!--Multiple Choice-->
-        <div id="mcq">
-            <button class="choice"></button>
-            <button class="choice"></button>
-            <button class="choice"></button>
-       
-        </div>
+        <div class = "main-span-2">
 
-        
+            <h1 id="counter">Correct: </h1>
 
-        <button onclick="nextImage()" id = "button-next">Next</button>
+            <div id="mcq">
+                <button class="choice"></button>
+                <button class="choice"></button>
+                <button class="choice"></button>
+            </div>
 
+            <div id="frq">
+                <input id = "text-input">
+                <button onclick="checkFRQ()" id = "button-input">Enter</button>
+            </div>
 
-
-        <div>
-
-            <img id="image" src = "">
-            <h1 id="answer"></h1>
-            
-
-        </div>
-
-        <img id="image2" src = "images/checkmark.png">
-        <div class="file-picker">
-            <button onclick="openFile()">Open File</button>
         </div>
         
+        <div class = "main-span-3">
 
-    </div>
-    
+            <div class="tab-bar">
+                <button onclick="loadMode('mcq')">Multiple Choice</button>
+                <button onclick="loadMode('frq')">Free Response! </button>
+            </div>
 
-    
+            <img class = "main-image" id="image2" src = "images/checkmark.png">
+
+            <div class="main-selections">
+
+                <button onclick="nextImage()" id = "button-next">Next</button>
+                <button onclick="openFile()">Open File</button>
+
+            </div>
+
+        </div>
+
+    </main>
 
 </body>
 
