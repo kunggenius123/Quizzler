@@ -50,9 +50,11 @@ main {
 
 .main-span-3 {
     grid-column: span 3;
+    grid-template-rows: auto 1fr 1fr 1fr auto;
     display: grid;
     grid-row: span 5;
     overflow: hidden;
+    margin-right: 5%;
 }
 
 .tab-bar {
@@ -62,7 +64,11 @@ main {
 
 .main-image {
     grid-row: 2 / span 3;
-    margin: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;    
+    justify-self: center;
+    align-self: center;
 }
 
 .main-selections {
@@ -80,12 +86,12 @@ main {
 
 #counter {
     margin-bottom: 50px;
-    grid-row: 1 / span 1;
+    grid-row: span 1;
     align-self: end;
 }
 
 #mcq {
-    grid-row: 2 / span 3;   
+    grid-row: span 3;   
     display: flex;
     justify-content: space-evenly;
     flex-direction: column;
@@ -95,5 +101,12 @@ main {
 
 #frq {
     margin-top: 50px;
-    grid-row: 5 / span 1;
+    grid-row: span 1;
+}
+
+#checkMarkImg {
+    height: 30%;
+    object-fit: contain;
+    justify-self: center;
+    display: block;
 }

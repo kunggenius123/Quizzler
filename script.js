@@ -25,7 +25,7 @@ const imageId = document.getElementById("image");
 const textBoxId = document.getElementById("text-input");
 const buttonId = document.getElementById("button-input");
 const answerId = document.getElementById("answer");
-const image2Id = document.getElementById("image2");
+const checkMarkImgId = document.getElementById("checkMarkImg");
 const counterId = document.getElementById("counter");
 
 let pages = [];
@@ -83,12 +83,12 @@ function loadMode(mode){
     const mcq = document.getElementById("mcq");
 
     if(mode == "frq"){
-        frq.style.display="block";
+        frq.style.display="inline-block";
         mcq.style.display="none";
     }
     else if(mode == "mcq"){
         frq.style.display="none";
-        mcq.style.display="block";
+        mcq.style.display="flex";
 
         loadMCQ(pages[currentIndex]);
     }
@@ -236,9 +236,6 @@ async function loadMCQ(page){
     const answer = page.text;
 
     // Strict equality (===) checks for both value and object type
-    
-
-
 
     let choices = [answer, answer, answer];
 
@@ -304,8 +301,7 @@ function checkMCQ(event){
     const button = event.currentTarget;
 
     if(button.dataset.correct === "true"){
-        image2Id.src=checkFilename;
-        image2Id.style.opacity=100;
+        checkMarkImgId.src=checkFilename;
         counter++;
 
         if(!mcqAnsweredCorrect){
@@ -316,11 +312,12 @@ function checkMCQ(event){
         mcqAnsweredCorrect = true; 
     }
     else{
-        console.log("X");
-        image2Id.src=xFilename;
-        image2Id.style.opacity=100;
+
+        checkMarkImgId.src=xFilename;
         
     }
+
+    checkMarkImgId.style.display = "block";
     
     
 } 
@@ -335,8 +332,8 @@ function checkFRQ(){
     
     if(input === strippedName){
         console.log("Check");
-        image2Id.src=checkFilename;
-        image2Id.style.opacity=100;
+        checkMarkImgId.src=checkFilename;
+        checkMarkImgId.style.opacity=100;
         counter++;
         counterId.textContent=`Correct: ${counter}`;
         answerId.textContent = "";
@@ -344,8 +341,8 @@ function checkFRQ(){
     }
     else{
         console.log("X");
-        image2Id.src=xFilename;
-        image2Id.style.opacity=100;
+        checkMarkImgId.src=xFilename;
+        checkMarkImgId.style.opacity=100;
         answerId.textContent = name;
     }
 
@@ -356,7 +353,7 @@ function nextImage(){
 
     textBoxId.value = "";
     answerId.textContent = "";
-    image2Id.style.opacity=0;
+    checkMarkImgId.style.opacity=0;
 
     if (!pages.length) return;
 
