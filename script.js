@@ -138,8 +138,15 @@ function swapCategories(answer){
     let chosenAnswerTopic = answerTopics[Math.floor(Math.random() * (answerTopics.length))];
     let chosenAnswerPeople = answerPeople[Math.floor(Math.random() * (answerPeople.length))];
 
-    let answerTopicWord = chosenAnswerTopic.split(" ")[Math.floor(Math.random() * (chosenAnswerTopic.length))];
-    let answerPeopleWord = chosenAnswerPeople.split(" ")[Math.floor(Math.random() * (chosenAnswerPeople.length))];
+    let chosenAnswerTopicSplit = chosenAnswerTopic.split(" ");
+    let answerTopicWord = chosenAnswerTopicSplit[Math.floor(Math.random() * (chosenAnswerTopicSplit.length))];
+    
+    let answerPeopleWord;
+
+    if(chosenAnswerPeople){
+        let chosenAnswerPeopleSplit = chosenAnswerPeople.split(" ");
+        answerPeopleWord = chosenAnswerPeopleSplit[Math.floor(Math.random() * (chosenAnswerPeopleSplit.length))];
+    }
     
 
     const otherPages = pages.filter(page => page !== answer);
@@ -151,16 +158,27 @@ function swapCategories(answer){
     let chosenIncorrectTopic = incorrectTopics[Math.floor(Math.random() * (incorrectTopics.length))];
     let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];
 
-    let incorrectTopicWord = chosenIncorrectTopic.split(" ")[Math.floor(Math.random() * (chosenIncorrectTopic.length))];
-    let incorrectPeopleWord = chosenIncorrectPeople.split(" ")[Math.floor(Math.random() * (chosenIncorrectPeople.length))];
+    let chosenIncorrectTopicSplit = chosenIncorrectTopic.split(" ");
+    let incorrectTopicWord = chosenIncorrectTopicSplit[Math.floor(Math.random() * (chosenIncorrectTopicSplit.length))];
     
+    let incorrectPeopleWord;
 
-    let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord).replaceAll(answerPeopleWord, incorrectPeopleWord);
+    if(chosenIncorrectPeople){
+        let chosenIncorrectPeopleSplit = chosenIncorrectPeople.split(" ");
+        incorrectPeopleWord = chosenIncorrectPeopleSplit[Math.floor(Math.random() * (chosenIncorrectPeopleSplit.length))];
+    }
 
-    console.log("chosenAnswerTopic", chosenAnswerTopic);
-    console.log("chosenIncorrectTopic", chosenIncorrectTopic);
-    console.log("chosenAnswerPeople", chosenAnswerPeople);
-    console.log("chosenIncorrectPeople", chosenIncorrectPeople);
+    let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
+
+    if(answerPeopleWord && incorrectPeopleWord){
+        choice = choice.replaceAll(answerPeopleWord, incorrectPeopleWord);
+
+    }
+
+    console.log("answerTopicWord", answerTopicWord);
+    console.log("answerPeopleWord", answerPeopleWord);
+    console.log("incorrectTopicWord", incorrectTopicWord);
+    console.log("incorrectPeopleWord", incorrectPeopleWord);
 
     console.log("Choice", choice);
 
