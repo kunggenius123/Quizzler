@@ -149,11 +149,12 @@ function swapCategories(answer){
     }
     
 
-    const otherPages = pages.filter(page => page !== answer);
-    const incorrectPage = otherPages[Math.floor(Math.random() * (otherPages.length))];
+    const otherPages = pages.filter(page => page.text !== answer);
+    const incorrect = otherPages[Math.floor(Math.random() * (otherPages.length))].text;
+    const incorrectDocument = nlp(incorrect);
 
-    const incorrectPeople = answerDocument.people().out('array');
-    const incorrectTopics = answerDocument.nouns().out('array');
+    const incorrectPeople = incorrectDocument.people().out('array');
+    const incorrectTopics = incorrectDocument.nouns().out('array');
 
     let chosenIncorrectTopic = incorrectTopics[Math.floor(Math.random() * (incorrectTopics.length))];
     let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];
@@ -168,12 +169,25 @@ function swapCategories(answer){
         incorrectPeopleWord = chosenIncorrectPeopleSplit[Math.floor(Math.random() * (chosenIncorrectPeopleSplit.length))];
     }
 
-    let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
+    //let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
 
-    if(answerPeopleWord && incorrectPeopleWord){
+    /*if(answerPeopleWord && incorrectPeopleWord){
         choice = choice.replaceAll(answerPeopleWord, incorrectPeopleWord);
 
+    }*/
+
+     
+
+    if (chosenAnswerPeople && chosenIncorrectPeople) {
+        answerDocument.people().first().replaceWith(chosenIncorrectPeople);
     }
+
+    if (chosenAnswerTopic && chosenIncorrectTopic) {
+        answerDocument.nouns().first().replaceWith(chosenIncorrectTopic);
+    }
+
+    let choice = answerDocument.text();
+    choice = choice.replace(/,+/g, ",");
 
     console.log("answerTopicWord", answerTopicWord);
     console.log("answerPeopleWord", answerPeopleWord);
