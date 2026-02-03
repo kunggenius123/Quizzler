@@ -138,15 +138,15 @@ function swapCategories(answer){
     let chosenAnswerTopic = answerTopics[Math.floor(Math.random() * (answerTopics.length))];
     let chosenAnswerPeople = answerPeople[Math.floor(Math.random() * (answerPeople.length))];
 
-    let chosenAnswerTopicSplit = chosenAnswerTopic.split(" ");
-    let answerTopicWord = chosenAnswerTopicSplit[Math.floor(Math.random() * (chosenAnswerTopicSplit.length))];
+    //let chosenAnswerTopicSplit = chosenAnswerTopic.split(" ");
+    //let answerTopicWord = chosenAnswerTopicSplit[Math.floor(Math.random() * (chosenAnswerTopicSplit.length))];
     
-    let answerPeopleWord;
+    /*let answerPeopleWord;
 
     if(chosenAnswerPeople){
         let chosenAnswerPeopleSplit = chosenAnswerPeople.split(" ");
         answerPeopleWord = chosenAnswerPeopleSplit[Math.floor(Math.random() * (chosenAnswerPeopleSplit.length))];
-    }
+    }*/
     
 
     const otherPages = pages.filter(page => page.text !== answer);
@@ -159,15 +159,15 @@ function swapCategories(answer){
     let chosenIncorrectTopic = incorrectTopics[Math.floor(Math.random() * (incorrectTopics.length))];
     let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];
 
-    let chosenIncorrectTopicSplit = chosenIncorrectTopic.split(" ");
-    let incorrectTopicWord = chosenIncorrectTopicSplit[Math.floor(Math.random() * (chosenIncorrectTopicSplit.length))];
+    //let chosenIncorrectTopicSplit = chosenIncorrectTopic.split(" ");
+    //let incorrectTopicWord = chosenIncorrectTopicSplit[Math.floor(Math.random() * (chosenIncorrectTopicSplit.length))];
     
-    let incorrectPeopleWord;
+    /*let incorrectPeopleWord;
 
     if(chosenIncorrectPeople){
         let chosenIncorrectPeopleSplit = chosenIncorrectPeople.split(" ");
         incorrectPeopleWord = chosenIncorrectPeopleSplit[Math.floor(Math.random() * (chosenIncorrectPeopleSplit.length))];
-    }
+    }*/
 
     //let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
 
@@ -188,11 +188,6 @@ function swapCategories(answer){
 
     let choice = answerDocument.text();
     choice = choice.replace(/,+/g, ",");
-
-    console.log("answerTopicWord", answerTopicWord);
-    console.log("answerPeopleWord", answerPeopleWord);
-    console.log("incorrectTopicWord", incorrectTopicWord);
-    console.log("incorrectPeopleWord", incorrectPeopleWord);
 
     console.log("Choice", choice);
 
@@ -249,9 +244,14 @@ async function loadMCQ(page){
     
     const answer = page.text;
 
+    // Clears previous mcq button state
+    for (let button of mcqButtons) {
+        button.dataset.correct = "false";
+    }
+
     // Strict equality (===) checks for both value and object type
 
-    let choices = [answer, answer, answer];
+    let choices = [answer];
 
     let incorrectChoices;
     
@@ -262,7 +262,7 @@ async function loadMCQ(page){
     }
     catch(error){
         console.error("Generating incorrect choices failed, using fallback:", error);
-        incorrectChoices = [scrambleWord(answer), otherRandomPicture(page, choices)];
+        incorrectChoices = [otherRandomPicture(page, choices), otherRandomPicture(page, choices)];
     }
 
 
@@ -276,27 +276,37 @@ async function loadMCQ(page){
 
     let choiceFactor = Math.random() * 3;
 
-    if(choiceFactor < 1){
-        choices[1] = incorrectChoices[0];
-        choices[2] = incorrectChoices[1];
+    if(choiceFactor < 1.5){
+  
+        choices.push(incorrectChoices[0]);
+        choices.push(incorrectChoices[1]);
     }
-    else if(choiceFactor < 2){
-        choices[1] = otherRandomPicture(page, choices);
-        choices[2] = incorrectChoices[1]
+    else if(choiceFactor < 2.5){
+        choices.push(otherRandomPicture(page, choices));
+        choices.push(incorrectChoices[1]);
     }
     else if(choiceFactor < 3){
-        choices[1] = otherRandomPicture(page, choices);
-        choices[2] = otherRandomPicture(page, choices);
+        choices.push(otherRandomPicture(page, choices));
+        choices.push(otherRandomPicture(page, choices));
     }
   
+    
 
+    
 
-    for(let i = 0; i < choices.length; i++){
+    choices.sort(() => Math.random() - 0.5);
+
+    //let answerIndex = choices.findIndex(choice => stripText(choice, true) === stripText(answer, true));
+    let answerIndex = choices.indexOf(answer);
+
+    console.log("Choices: ", choices);
+
+    for(let i = 0; i < mcqButtons.length; i++){
         
-        let choice = choices[i];
-        mcqButtons[i].textContent = choice;
+        mcqButtons[i].textContent = choices[i];
 
-        if(stripText(choice, true) === stripText(answer, true)){
+
+        if(i === answerIndex){
 
             // Creates an attribute "correct" in the data of the button, sets it to true
             mcqButtons[i].dataset.correct = "true";
@@ -306,24 +316,32 @@ async function loadMCQ(page){
         }
         
     } 
-    
+
 } 
 
 // Event listener automatically passes in event parameter
 function checkMCQ(event){
+
+    console.log("Button Clicked: ", event.currentTarget.textContent);
     
     const button = event.currentTarget;
 
     if(button.dataset.correct === "true"){
-        checkMarkImgId.src=checkFilename;
-        counter++;
+        
+        console.log("Correct:", button.textContent);
 
         if(!mcqAnsweredCorrect){
+            counter++;
             counterId.textContent=`Correct: ${counter}`;
             answerId.textContent = "";
+            
+            mcqAnsweredCorrect = true; 
+
+            
         }
 
-        mcqAnsweredCorrect = true; 
+        checkMarkImgId.src=checkFilename;
+        
     }
     else{
 

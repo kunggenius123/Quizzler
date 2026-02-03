@@ -105,8 +105,11 @@ main {
 }
 
 #checkMarkImg {
-    height: 30%;
+    position: absolute;  
+    height: 20%;
     object-fit: contain;
     justify-self: center;
     display: block;
+    pointer-events: none;
+    
 }
