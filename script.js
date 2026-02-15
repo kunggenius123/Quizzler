@@ -113,17 +113,8 @@ function otherRandomPicture(currentPage, usedChoices = []){
     return others[randomIndex].text;
 }
 
-function scrambleWord(choice){
-
-    const words = choice.split(" ");
-    const randomIndex = Math.floor(Math.random() * (words.length));
-
-    words[randomIndex] = "";
-
-    return words.join(" ");
-
-}
-
+// OLD FAULTY METHOD
+/*
 function swapCategories(answer){
    
     
@@ -131,23 +122,12 @@ function swapCategories(answer){
     const answerDocument = nlp(answer);
 
     const answerPeople = answerDocument.people().out('array');
-    //const nouns = answerDocument.nouns().out('array');
-    const answerTopics = answerDocument.nouns().out('array');
+
+    const answerTopics = answerDocument.nouns().out('array').filter(noun => !/\d/.test(noun) && !noun.toLowerCase().includes("century"));
 
    
     let chosenAnswerTopic = answerTopics[Math.floor(Math.random() * (answerTopics.length))];
     let chosenAnswerPeople = answerPeople[Math.floor(Math.random() * (answerPeople.length))];
-
-    //let chosenAnswerTopicSplit = chosenAnswerTopic.split(" ");
-    //let answerTopicWord = chosenAnswerTopicSplit[Math.floor(Math.random() * (chosenAnswerTopicSplit.length))];
-    
-    /*let answerPeopleWord;
-
-    if(chosenAnswerPeople){
-        let chosenAnswerPeopleSplit = chosenAnswerPeople.split(" ");
-        answerPeopleWord = chosenAnswerPeopleSplit[Math.floor(Math.random() * (chosenAnswerPeopleSplit.length))];
-    }*/
-    
 
     const otherPages = pages.filter(page => page.text !== answer);
     const incorrect = otherPages[Math.floor(Math.random() * (otherPages.length))].text;
@@ -157,33 +137,21 @@ function swapCategories(answer){
     const incorrectTopics = incorrectDocument.nouns().out('array');
 
     let chosenIncorrectTopic = incorrectTopics[Math.floor(Math.random() * (incorrectTopics.length))];
-    let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];
-
-    //let chosenIncorrectTopicSplit = chosenIncorrectTopic.split(" ");
-    //let incorrectTopicWord = chosenIncorrectTopicSplit[Math.floor(Math.random() * (chosenIncorrectTopicSplit.length))];
-    
-    /*let incorrectPeopleWord;
-
-    if(chosenIncorrectPeople){
-        let chosenIncorrectPeopleSplit = chosenIncorrectPeople.split(" ");
-        incorrectPeopleWord = chosenIncorrectPeopleSplit[Math.floor(Math.random() * (chosenIncorrectPeopleSplit.length))];
-    }*/
-
-    //let choice = answer.replaceAll(answerTopicWord, incorrectTopicWord);
-
-    /*if(answerPeopleWord && incorrectPeopleWord){
-        choice = choice.replaceAll(answerPeopleWord, incorrectPeopleWord);
-
-    }*/
-
-     
-
+    let chosenIncorrectPeople = incorrectPeople[Math.floor(Math.random() * (incorrectPeople.length))];  
+      
     if (chosenAnswerPeople && chosenIncorrectPeople) {
-        answerDocument.people().first().replaceWith(chosenIncorrectPeople);
+        if(!answer.includes(chosenIncorrectPeople.replace(/[\d()[\]{}]/g, ""))){
+            answerDocument.people().first().replaceWith(chosenIncorrectPeople);
+        }
+        
     }
 
+    
     if (chosenAnswerTopic && chosenIncorrectTopic) {
-        answerDocument.nouns().first().replaceWith(chosenIncorrectTopic);
+        if(!answer.includes(chosenIncorrectTopic.replace(/[\d()[\]{}]/g, ""))){
+            answerDocument.nouns().first().replaceWith(chosenIncorrectTopic);
+        }
+        
     }
 
     let choice = answerDocument.text();
@@ -192,19 +160,48 @@ function swapCategories(answer){
     console.log("Choice", choice);
 
     return choice;
-
-    /*
-
-    const randomPage =
-
-    document.people().forEach((name, i) => {
-
-    });
-
-    replaceAll(randomPage.people())*/
-    
     
 }
+*/
+
+function swapParts(answer){
+
+    
+
+    const otherPages = pages.filter(page => page.text !== answer);
+    const incorrect = otherPages[Math.floor(Math.random() * (otherPages.length))].text;
+    
+    // Splits and then trims each element
+    const correctParts = answer.split(",").map(parts => parts.trim());
+    const incorrectParts = incorrect.split(",").map(parts => parts.trim());
+
+    // If not same number of parts, return whole incorrect choice
+    if(correctParts.length !== incorrectParts.length){
+        return incorrect;
+    }
+
+    let swapCount = Math.ceil(Math.random() * 2);
+
+    for(let i = 0; i < swapCount; i++){
+        let swapIndex = Math.floor(Math.random() * (correctParts.length));
+        
+        while (correctParts.includes(incorrectParts[swapIndex])) {
+            swapIndex = Math.floor(Math.random() * (correctParts.length));
+        }
+
+        correctParts[swapIndex] = incorrectParts[swapIndex];
+        
+    }
+
+    // Spread syntax [...] makes a new array copy (doesn't point to original)
+    const swappedChoice = [...correctParts].join(", ");
+
+    console.log("Swapped Choice: ", swappedChoice);
+
+    return swappedChoice;
+
+}
+
 
 async function getAIChoices(correct){
     console.log(correct);
@@ -253,18 +250,7 @@ async function loadMCQ(page){
 
     let choices = [answer];
 
-    let incorrectChoices;
-    
-    // Makes sure app doesn't crash when API call fails
-    
-    try{
-        incorrectChoices = [swapCategories(answer), swapCategories(answer)];
-    }
-    catch(error){
-        console.error("Generating incorrect choices failed, using fallback:", error);
-        incorrectChoices = [otherRandomPicture(page, choices), otherRandomPicture(page, choices)];
-    }
-
+    let swappedChoices = [swapParts(answer), swapParts(answer)];
 
 
     // TODO: Create a random object between 0 and 1
@@ -278,20 +264,18 @@ async function loadMCQ(page){
 
     if(choiceFactor < 1.5){
   
-        choices.push(incorrectChoices[0]);
-        choices.push(incorrectChoices[1]);
+        choices.push(swappedChoices[0]);
+        choices.push(swappedChoices[1]);
     }
     else if(choiceFactor < 2.5){
         choices.push(otherRandomPicture(page, choices));
-        choices.push(incorrectChoices[1]);
+        choices.push(swappedChoices[1]);
     }
     else if(choiceFactor < 3){
         choices.push(otherRandomPicture(page, choices));
         choices.push(otherRandomPicture(page, choices));
     }
   
-    
-
     
 
     choices.sort(() => Math.random() - 0.5);
