@@ -349,7 +349,7 @@ function checkFRQ(){
     if(input === strippedName){
         console.log("Check");
         checkMarkImgId.src=checkFilename;
-        checkMarkImgId.style.opacity=100;
+        checkMarkImgId.style.display = "block";
         counter++;
         counterId.textContent=`Correct: ${counter}`;
         answerId.textContent = "";
@@ -358,7 +358,7 @@ function checkFRQ(){
     else{
         console.log("X");
         checkMarkImgId.src=xFilename;
-        checkMarkImgId.style.opacity=100;
+        checkMarkImgId.style.display = "block";
         answerId.textContent = name;
     }
 
@@ -369,7 +369,7 @@ function nextImage(){
 
     textBoxId.value = "";
     answerId.textContent = "";
-    checkMarkImgId.style.opacity=0;
+    checkMarkImgId.style.display = "none";
 
     if (!pages.length) return;
 

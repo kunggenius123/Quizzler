@@ -43,14 +43,18 @@ main {
 
 .main-span-2 {
     grid-column: 1 / span 2;
-    display: grid;
     grid-row: span 5;
     margin-left: 5%;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .main-span-3 {
     grid-column: span 3;
     grid-template-rows: auto 1fr 1fr 1fr auto;
+    row-gap: 1rem;
     display: grid;
     grid-row: span 5;
     overflow: hidden;
@@ -69,6 +73,8 @@ main {
     object-fit: contain;    
     justify-self: center;
     align-self: center;
+    margin-top: 1.5rem;    
+    margin-bottom: 1.5rem;
 }
 
 .main-selections {
@@ -81,13 +87,22 @@ main {
     flex: 1;
 }
 
+.correct-row {
+    display: flex;             
+    align-items: center; 
+    flex-direction: row;       
+    gap: 4rem;                
+    margin-bottom: 1.5rem;
+}
+
 
 /* ------------------ ID STYLES ----------------------- */
 
 #counter {
-    margin-bottom: 50px;
-    grid-row: span 1;
-    align-self: end;
+    
+    margin: 0;
+    padding: 0;
+    display: inline-block;
 }
 
 #mcq {
@@ -105,11 +120,12 @@ main {
 }
 
 #checkMarkImg {
-    position: absolute;  
-    height: 20%;
-    object-fit: contain;
-    justify-self: center;
-    display: block;
+    height: 5rem;             /* fixed icon size */
+    width: auto;                /* keep aspect ratio */
+    align-self: center;         /* prevent flexbox stretch */
+    display: none;
     pointer-events: none;
+    margin: 0;
+    padding: 0;
     
 }
