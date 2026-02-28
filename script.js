@@ -40,6 +40,8 @@ for(let i = 0; i < mcqButtons.length; i++){
     mcqButtons[i].addEventListener("click", checkMCQ);
 }
 
+const mcqDiv = document.getElementById("mcq");
+
 /*let randomIndex = Math.floor(Math.random() * images.length);
 
 let image = images[randomIndex];
@@ -249,8 +251,16 @@ async function loadMCQ(page){
     // Strict equality (===) checks for both value and object type
 
     let choices = [answer];
+    
+    let swappedChoices;
 
-    let swappedChoices = [swapParts(answer), swapParts(answer)];
+    try{
+        swappedChoices = await getAIChoices(answer);
+    }
+    catch(error){
+        console.error("AI failed, using fallback: ", error);
+        swappedChoices = [swapParts(answer), swapParts(answer)];
+    }
 
 
     // TODO: Create a random object between 0 and 1
@@ -333,7 +343,15 @@ function checkMCQ(event){
         
     }
 
-    checkMarkImgId.style.display = "block";
+    checkMarkImgId.style.visibility = "visible";
+
+    mcqButtons.forEach(button => {
+        button.disabled = true;
+        if(button.dataset.correct === "true"){
+            button.style.backgroundColor = "white";
+            button.style.color = "black";
+        }
+    })
     
     
 } 
@@ -349,7 +367,8 @@ function checkFRQ(){
     if(input === strippedName){
         console.log("Check");
         checkMarkImgId.src=checkFilename;
-        checkMarkImgId.style.display = "block";
+        //checkMarkImgId.style.display = "block";
+        checkMarkImgId.style.visibility = "visible";
         counter++;
         counterId.textContent=`Correct: ${counter}`;
         answerId.textContent = "";
@@ -358,7 +377,8 @@ function checkFRQ(){
     else{
         console.log("X");
         checkMarkImgId.src=xFilename;
-        checkMarkImgId.style.display = "block";
+        //checkMarkImgId.style.display = "block";
+        checkMarkImgId.style.visibility = "visible";
         answerId.textContent = name;
     }
 
@@ -369,7 +389,7 @@ function nextImage(){
 
     textBoxId.value = "";
     answerId.textContent = "";
-    checkMarkImgId.style.display = "none";
+    checkMarkImgId.style.visibility = "hidden";
 
     if (!pages.length) return;
 
@@ -390,6 +410,13 @@ function nextImage(){
     if(currentMode === "mcq"){
         loadMCQ(page);
     }
+
+    mcqButtons.forEach(button => {
+        button.disabled = false;
+        button.style.backgroundColor = "";
+        button.style.color = "";
+       
+    })
    
 }
 
@@ -512,6 +539,8 @@ async function openFile(){
     imageId.src = randomImage(pages);
 
     loadMode("mcq");
+
+    mcqDiv.style.visibility="visible";
     
 }
 

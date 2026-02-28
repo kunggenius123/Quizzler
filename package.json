@@ -17,14 +17,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Noodlesoup29/Collaborative-Project.git"
+    "url": "git+https://github.com/kunggenius123/Quizzler.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/Noodlesoup29/Collaborative-Project/issues"
+    "url": "https://github.com/kunggenius123/Quizzler/issues"
   },
-  "homepage": "https://github.com/Noodlesoup29/Collaborative-Project#readme"
+  "homepage": "https://github.com/kunggenius123/Quizzler#readme"
 }
