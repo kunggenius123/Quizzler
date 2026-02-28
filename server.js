@@ -3,6 +3,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 
+console.log("Test run");
+
 dotenv.config();
 
 const client = new OpenAI({
