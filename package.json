@@ -4,16 +4,17 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "openai": "^6.22.0"
+    "jimp": "^1.6.0",
+    "openai": "^6.33.0"
   },
   "name": "Quizzler",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
   },
   "repository": {
     "type": "git",
@@ -27,4 +28,5 @@
     "url": "https://github.com/kunggenius123/Quizzler/issues"
   },
   "homepage": "https://github.com/kunggenius123/Quizzler#readme"
+  
 }

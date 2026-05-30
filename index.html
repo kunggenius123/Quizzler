@@ -9,63 +9,93 @@
 
     <!--script src="https://unpkg.com/compromise@14/builds/compromise.min.js"></script-->
     
-    <script type="module" src = "script.js" defer></script>
+    <script type="module" src = "src/table/tableScript.js" defer></script>
     
 
 </head>
 <body>
 
-    <nav> 
-        <p> Quizzler </p> 
+    <nav class="navbar"> 
+        <button type="button" class="nav-logo" onclick="showHome()">Home</button>
+
+        <button type="button" class="nav-upload-button" onclick="openTable()">
+            Upload Table
+        </button>
+        <button type="button" class="nav-notes-button" onclick="openNotes()">
+            Upload Notes
+        </button>
     </nav>
 
     <main>
+        <section id="home-page" class="home-page">
+            <h1>Turn Tables Into Quizzes</h1>
+            <p>
+                Upload a table image and Quizzler will extract the images and labels
+                to create multiple choice and free response practice questions.
+            </p>
+        </section>
 
-        <div class = "main-span-2">
+        <section id="quiz-page" class="quiz-page">
 
-            
-            
+            <div class = "main-span-2">
 
-            <div class="correct-row">
-                <h1 id="counter">Correct: </h1>
-                <img id="checkMarkImg" src = "images/checkmark.png">
-            </div>
+                <div class="correct-row">
+                    <h1 id="counter">Correct: </h1>
+                    <img id="checkMarkImg" src="images/checkmark.png">
+                </div>
 
-            <div id="mcq">
-                <button class="choice"></button>
-                <button class="choice"></button>
-                <button class="choice"></button>
-            </div>
+                <div id="mcq">
+                    <button type="button" class="choice"></button>
+                    <button type="button" class="choice"></button>
+                    <button type="button" class="choice"></button>
+                </div>
 
-            <div id="frq">
+                <div id="frq">
+                    <h2 id="frq-question"></h2>
+
+                    <div class="frq-input-row">
+                        <input id="text-input">
+                        <button type="button" onclick="checkFRQ()" id="button-input">Enter</button>
+                    </div>
+
+                    <div class="answer-row">
+                        <h1 id="answer"></h1>
                 
-                <input id = "text-input">
-                <button onclick="checkFRQ()" id = "button-input">Enter</button>
-                <h1 id="answer"></h1>
-            </div>
+                    </div>
+                </div>
 
+                
+
+            </div>
             
+            <div class = "main-span-3">
 
-        </div>
-        
-        <div class = "main-span-3">
+                <div class="tab-bar">
+                    <button type="button" class="version-buttons" onclick="loadMode('mcq')">Multiple Choice</button>
+                    <button type="button" class="version-buttons" onclick="loadMode('frq')">Free Response</button>
+                </div>
+                
+                <div class="image-wrapper">
+                    <img class="main-image" id="image" src="">
 
-            <div class="tab-bar">
-                <button onclick="loadMode('mcq')">Multiple Choice</button>
-                <button onclick="loadMode('frq')">Free Response! </button>
+                    <div id="question-display"></div>
+
+                    <div id="image-loading-overlay" class="image-loading-overlay">
+                        <p>Loading File...</p>
+                        
+                    </div>
+                </div>
+
+                <div class="main-selections">
+
+                    <button type="button" onclick="nextImage()" id = "button-next">Next</button>
+
+
+                </div>
+
             </div>
 
-            <img class = "main-image" id="image" src = "">
-
-            <div class="main-selections">
-
-                <button onclick="nextImage()" id = "button-next">Next</button>
-                <button onclick="openFile()">Open File</button>
-
-            </div>
-
-        </div>
-
+        </section>
     </main>
 
 </body>
