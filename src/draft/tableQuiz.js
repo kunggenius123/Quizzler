@@ -25,20 +25,56 @@ export function stripText(text, includeSpace){
     
 }
 
-export function otherRandomRow(currentRow, usedChoices = [], rows, term){
-    const others = rows.filter(row => row !== currentRow);
+export function getCorrectAnswer(item){
+    if(item.type === "notes"){
+        return item.answer;
+    }
 
-    if(!others.length) return null;
-    
-    let randomIndex = Math.floor(Math.random() * others.length);
+    if(!item.category){
+        return "";
+    }
 
-    for(const choice of usedChoices){
-        while(others[randomIndex].terms[term] === choice){
-            randomIndex = Math.floor(Math.random() * others.length);
+    const value = item.terms[item.category];
+    return typeof value === "string" ? value.trim() : "";
+}
+
+export function sameCategoryDistractor(currentItem, usedChoices = [], items){
+    let otherItems = items.filter(item => item !== currentItem);
+
+    if(!otherItems.length){
+        return null;
+    }
+
+    let possibleAnswers = [];
+
+    for(const otherItem of otherItems){
+        let answer = "";
+
+        if(currentItem.type === "table"){
+            const value = otherItem.terms?.[currentItem.category];
+
+            answer = typeof value === "string" ? value.trim() : "";
+            
+        }
+        else if(currentItem.type === "notes"){
+            const value = otherItem.answer;
+
+            answer = typeof value === "string" ? value.trim() : "";
+        }
+
+        // Add valid answers that not already used
+        if(answer && !usedChoices.includes(answer)){
+            possibleAnswers.push(answer);
         }
     }
 
-    return others[randomIndex].terms[term];
+    if(!possibleAnswers.length){
+        return null;
+    }
+
+    // Pick one of the other item answers randomly
+    const randomIndex = Math.floor(Math.random() * possibleAnswers.length);
+    return possibleAnswers[randomIndex];
 }
 
 export async function getAIChoices(correct){
@@ -54,8 +90,8 @@ export async function getAIChoices(correct){
     
 }
 
-export async function buildMCQ(row, rows, term){
-    const answer = row.terms[term];
+export async function buildMCQ(item, items){
+    const answer = getCorrectAnswer(item);
 
     let choices = [answer];
     
@@ -67,7 +103,7 @@ export async function buildMCQ(row, rows, term){
     }
     catch(error){
         console.error("AI failed, using fallback: ", error);
-        newChoices = [otherRandomRow(row, choices, rows, term), otherRandomRow(row, choices, rows, term)];
+        newChoices = [sameCategoryDistractor(item, choices, items), sameCategoryDistractor(item, choices, items)];
     }
 
 
@@ -86,14 +122,23 @@ export async function buildMCQ(row, rows, term){
         choices.push(newChoices[1]);
     }
     else if(choiceFactor < 2.5){
-        choices.push(otherRandomRow(row, choices, rows, term));
+        choices.push(sameCategoryDistractor(item, choices, items));
         choices.push(newChoices[1]);
     }
     else{
-        choices.push(otherRandomRow(row, choices, rows, term));
-        choices.push(otherRandomRow(row, choices, rows, term));
+        choices.push(sameCategoryDistractor(item, choices, items));
+        choices.push(sameCategoryDistractor(item, choices, items));
     }
   
+    while(choices.length < 3){
+        const distractor = sameCategoryDistractor(item, choices, items);
+    
+        if(!distractor){
+            break;
+        }
+    
+        choices.push(distractor);
+    }
     
 
     choices.sort(() => Math.random() - 0.5);

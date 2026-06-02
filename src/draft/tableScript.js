@@ -2,7 +2,7 @@
 //import nlp from "https://cdn.jsdelivr.net/npm/compromise/+esm";
 
 //import { cat } from "@xenova/transformers";
-import { buildMCQ, stripText } from "./tableQuiz.js";
+import { buildMCQ, stripText, getCorrectAnswer } from "../table/tableQuiz.ts";
 //import { parseTable } from "./tableExtraction.js";
 
 const homePageId = document.getElementById("home-page");
@@ -24,16 +24,12 @@ const checkMarkImgId = document.getElementById("checkMarkImg");
 const counterId = document.getElementById("counter");
 
 
-let table = [];
 let quizItems = [];
 
 let quizLoading = false;
 
 let currentMode = "mcq";
 
-let currentTerm = null;
-
-let randomImageIndex = 0;
 let currentQuestionIndex = 0;
 
 let counter = 0;
@@ -47,10 +43,75 @@ const frqDiv = document.getElementById("frq");
 const mcqDiv = document.getElementById("mcq");
 
 
+function setFrqPrompt(quizItem){
+    if(quizItem.type === "notes"){
+        frqQuestionId.textContent = "Answer:";
+        return;
+    }
+
+    if(!quizItem.category){
+        frqQuestionId.textContent = "";
+        return;
+    }
+
+    frqQuestionId.textContent = `What is the ${quizItem.category}?`;
+}
+
+function pickRandomCategory(quizItem){
+    // Filters out terms that are empty or non-strings
+    const terms = Object.keys(quizItem.terms).filter(
+        term => typeof quizItem.terms[term] === "string" && quizItem.terms[term].trim() !== ""
+    );
+
+    if(!terms.length){
+        console.error("No valid terms found for quiz item:", quizItem);
+        quizItem.category = null;
+        return;
+    }
+
+    quizItem.category = terms[Math.floor(Math.random() * terms.length)];
+    console.log("Selected term:", quizItem.category, "=", quizItem.terms[quizItem.category]);
+}
+
+function rowsToQuizItems(rows){
+    const items = [];
+
+    for(const row of rows){
+        const terms = row.terms || {};
+        
+        // If at least one term is a non-empty string
+        const hasTerm = Object.values(terms).some(
+            value => typeof value === "string" && value.trim() !== ""
+        );
+
+        if(!hasTerm || !(row.images?.length)){
+            continue;
+        }
+
+        items.push({
+            type: "table",
+            terms,
+            images: row.images,
+            category: null,
+        });
+    }
+
+    return items;
+}
+
+function notesToQuizItems(noteItems){
+    return noteItems.map(item => ({
+        type: "notes",
+        question: item.question,
+        answer: item.answer,
+        category: item.category || "",
+        images: [],
+    }));
+}
+
 function showHome(){
-    table = [];
-    currentTerm = null;
-    randomImageIndex = 0;
+    quizItems = [];
+    currentQuestionIndex = 0;
     counter = 0;
 
     imageId.src = "";
@@ -72,20 +133,25 @@ function showHome(){
 function loadMode(mode){
 
     console.log("loadMode clicked:", mode);
-    console.log("table length:", table.length);
+    console.log("quiz items:", quizItems.length);
 
     currentMode = mode;
 
-    if(!table.length){
-        console.log("No table loaded yet");
+    if(!quizItems.length){
+        console.log("No quiz loaded yet");
         return;
     }
+
+    const quizItem = quizItems[currentQuestionIndex];
+
+    if(quizItem.type === "table" && !quizItem.category){
+        pickRandomCategory(quizItem);
+    }
+
     if(mode == "frq"){
         console.log("Switching to FRQ");
-        
-        if (currentTerm) {
-            frqQuestionId.textContent = `What is the ${currentTerm}?`;
-        }
+
+        setFrqPrompt(quizItem);
         
         frqDiv.style.display="inline-block";
         mcqDiv.style.display="none";
@@ -97,14 +163,14 @@ function loadMode(mode){
         frqDiv.style.display="none";
         mcqDiv.style.display="flex";
 
-        loadMCQ(table[randomImageIndex]);
+        loadMCQ(quizItem);
     }
 }
 
 let mcqAnsweredCorrect = false; 
 
 // Needs async to use await
-async function loadMCQ(row){
+async function loadMCQ(quizItem){
 
     mcqAnsweredCorrect = false; 
     
@@ -118,46 +184,20 @@ async function loadMCQ(row){
         button.style.color = "";
     }
     
-    const mcq = await buildMCQ(row, table, currentTerm);
+    const mcq = await buildMCQ(quizItem, quizItems);
 
     console.log("Choices: ", mcq.choices);
 
     for(let i = 0; i < mcqButtons.length; i++){
-        
-        mcqButtons[i].textContent = mcq.choices[i];
-        mcqButtons[i].classList.remove("choice-loading");
 
-        // Strict equality (===) checks for both value and object type
-        if(i === mcq.answerIndex){
-
-            // Creates an attribute "correct" in the data of the button, sets it to true
-            mcqButtons[i].dataset.correct = "true";
+        if(!choice){
+            mcqButtons[i].textContent = "";
+            mcqButtons[i].disabled = true;
+            mcqButtons[i].style.display = "none";
+            continue;
         }
-        else{
-            mcqButtons[i].dataset.correct = "false";
-        }
-        
-        mcqButtons[i].disabled = false;
-    } 
 
-} 
-
-async function loadNotesMCQ(quizItem){
-    
-    // Clears previous mcq button state
-    for (let button of mcqButtons) {
-        button.disabled = true;
-        button.textContent = "Loading...";
-        button.classList.add("choice-loading");
-        button.dataset.correct = "false";
-        button.style.backgroundColor = "";
-        button.style.color = "";
-    }
-    
-    const mcq = await buildMCQ(quizItem, table, currentTerm);
-
-    for(let i = 0; i < mcqButtons.length; i++){
-        
+        mcqButtons[i].style.display = "block";
         mcqButtons[i].textContent = mcq.choices[i];
         mcqButtons[i].classList.remove("choice-loading");
 
@@ -220,9 +260,8 @@ function checkMCQ(event){
 
 function checkFRQ(){
     
-    let name = table[randomImageIndex].terms[currentTerm];
-
-    let strippedName = stripText(name, true);
+    const quizItem = quizItems[currentQuestionIndex];
+    let strippedName = stripText(getCorrectAnswer(quizItem), true);
 
     let input = stripText(textBoxId.value, true);
     
@@ -241,75 +280,33 @@ function checkFRQ(){
         checkMarkImgId.src=xFilename;
         //checkMarkImgId.style.display = "block";
         checkMarkImgId.style.visibility = "visible";
-        answerId.textContent = name;
+        answerId.textContent = getCorrectAnswer(quizItem);
     }
 
     frqButtonId.disabled=true;
     
 } 
 
-function randomImage(array){
-    randomImageIndex = Math.floor(Math.random() * array.length);
+function displayCurrentQuestion(){
+    const quizItem = quizItems[currentQuestionIndex];
 
-    return array[randomImageIndex].images[0].data;
+    if(quizItem.type === "table"){
 
-}
+        if(!quizItem.images.length || !quizItem.category){
+            return;
+        }
 
-function randomTerm(row){
-
-    // Gets category names of terms
-    // Goes through each term and filters out empty ones
-    const terms = Object.keys(row.terms).filter(term => row.terms[term].trim() !== "");
-    
-    if (!terms.length) {
-        console.error("No valid terms found for row:", row);
-        currentTerm = null;
-        return;
-    }
-
-    const randomTermIndex = Math.floor(Math.random() * terms.length);
-    currentTerm = terms[randomTermIndex];
-
-    console.log("Selected term:", currentTerm, "=", row.terms[currentTerm]);
-}
-
-function nextImage(){
-
-    textBoxId.value = "";
-    answerId.textContent = "";
-    checkMarkImgId.style.visibility = "hidden";
-
-    if (!table.length) return;
-  
-    if(randomImageIndex >= table.length - 1){
-        randomImageIndex = 0;
+        imageId.style.display = "block";
+        questionDisplayId.style.display = "none";
+        imageId.src = `data:image/png;base64,${quizItem.images[0].data}`;
     }
     else{
-        randomImageIndex++;
+        imageId.style.display = "none";
+        questionDisplayId.style.display = "flex";
+        questionDisplayId.textContent = quizItem.question;
     }
 
-    let row = table[randomImageIndex]
-    let rowImages = row.images;
-
-    randomTerm(row);
-    frqQuestionId.textContent = `What is the ${currentTerm}?`;
-
-    if (!rowImages.length) return;
-    
-    imageId.src = `data:image/png;base64,${rowImages[0].data}`;
-
-    if(currentMode === "mcq"){
-        loadMCQ(row);
-    }
-
-    mcqButtons.forEach(button => {
-        button.disabled = false;
-        button.style.backgroundColor = "";
-        button.style.color = "";
-       
-    });
-
-    frqButtonId.disabled=false;
+    setFrqPrompt(quizItem);
 }
 
 function nextQuestion(){
@@ -329,14 +326,14 @@ function nextQuestion(){
 
     const quizItem = quizItems[currentQuestionIndex];
 
-    imageId.style.display = "none";
-    questionDisplayId.style.display = "flex";
-    questionDisplayId.textContent = item.question;
+    if(quizItem.type === "table"){
+        pickRandomCategory(quizItem);
+    }
 
-    frqQuestionId.textContent = "Answer:";
+    displayCurrentQuestion();
 
     if(currentMode === "mcq"){
-        loadNotesMCQ(quizItem);
+        loadMCQ(quizItems[currentQuestionIndex]);
     }
 
     frqButtonId.disabled=false;
@@ -344,6 +341,7 @@ function nextQuestion(){
 
 export async function openImage() {
     try{
+
         const [fileHandle] = await window.showOpenFilePicker();
         
         const file = await fileHandle.getFile();
@@ -354,11 +352,6 @@ export async function openImage() {
 
         // Reads raw bytes from file
         const arrayBuffer = await file.arrayBuffer();
-
-        // arrayBuffer -> numbered bytes -> char equivalent -> base64 text
-        // "..." passes each number from array as separate argument
-        //const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        
         
         // Raw bytes -> Numbered bytes -> Char equivalent -> Builds string from each char -> Base64 text
         const bytes = new Uint8Array(arrayBuffer);
@@ -417,19 +410,26 @@ async function openTable(){
 
         console.log("parseTable status:", response.status);
 
-        table = await response.json(); 
+        const rows = await response.json(); 
 
-        console.log("Frontend received table:", table);
-        console.log("Frontend table length:", table.length);
-        console.log("First row images:", table[0]?.images);
+        quizItems = rowsToQuizItems(rows);
 
-        console.log("Table on openTable():", table);
+        console.log("Frontend received quiz items:", quizItems.length);
 
-        imageId.src = `data:image/png;base64,${randomImage(table)}`;
+        if(!quizItems.length){
+            console.log("No quiz items parsed from table");
+            return;
+        }
 
-        randomTerm(table[randomImageIndex]);
+        currentQuestionIndex = Math.floor(Math.random() * quizItems.length);
 
-        console.log("Init term:", currentTerm);
+        const quizItem = quizItems[currentQuestionIndex];
+
+        if(quizItem.type === "table"){
+            pickRandomCategory(quizItem);
+        }
+        
+        displayCurrentQuestion();
 
         loadMode("mcq");
         
@@ -483,11 +483,18 @@ async function openNotes(){
             body: JSON.stringify({ notes })
         });
 
-        quizItems = await response.json(); 
+        const noteItems = await response.json(); 
+        quizItems = notesToQuizItems(noteItems);
 
-        imageId.style.display = "none";
-        questionDisplayId.style.display = "flex";
-        questionDisplayId.textContent = quizItems[currentQuestionIndex].question;
+        if(!quizItems.length){
+            console.log("No quiz items parsed from notes");
+            return;
+        }
+
+        currentQuestionIndex = 0;
+        displayCurrentQuestion();
+        
+        loadMode("mcq");
 
     }
     catch(error){
@@ -502,8 +509,9 @@ async function openNotes(){
 // These functions are not global so we have to attach them to window (the object for the whole row) 
 // They're not global it is type "module" according to the html script
 window.checkFRQ = checkFRQ;
-window.nextImage  = nextImage;
-window.openTable   = openTable;
+window.nextQuestion = nextQuestion;
+window.nextImage = nextQuestion;
+window.openTable = openTable;
 window.openNotes = openNotes;
 
 window.loadMode = loadMode;

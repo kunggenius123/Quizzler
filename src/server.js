@@ -19,7 +19,10 @@ app.options("/api/mcq", cors());
 app.options("/api/parseTable", cors());
 
 app.use(cors({
-    origin: 'http://127.0.0.1:5500',
+    origin: [
+        "http://127.0.0.1:5500",
+        "http://localhost:5173"
+    ],
     credentials: true
 }));
 
@@ -267,7 +270,7 @@ app.post("/api/parseNotes", async(request, response) => {
         .trim();
 
         const quizItems = JSON.parse(raw);
-        response.json(items);
+        response.json(quizItems);
 
     }
     catch(error){

@@ -9,7 +9,7 @@
 
     <!--script src="https://unpkg.com/compromise@14/builds/compromise.min.js"></script-->
     
-    <script type="module" src = "src/table/tableScript.js" defer></script>
+    <script type="module" src = "src/table/tableScript.ts"></script>
     
 
 </head>
@@ -24,6 +24,8 @@
         <button type="button" class="nav-notes-button" onclick="openNotes()">
             Upload Notes
         </button>
+
+        <input id="file-input" type="file" accept="image/*" style="display:none" />
     </nav>
 
     <main>
