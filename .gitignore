@@ -2,3 +2,7 @@
 .venv/
 node_modules/
 OpenAI_Key.txt
+dist/
+.DS_Store
+table_output/
+__pycache__/

@@ -1,3 +1,5 @@
+import { API_URL } from "./config";
+
 type TableImage = {
     data: string;
 };
@@ -113,7 +115,7 @@ export function sameCategoryDistractor(currentItem: QuizItem, usedChoices: strin
 export async function getAIChoices(correct: string): Promise<string[]>{
     console.log(correct);
 
-    const response = await fetch("http://127.0.0.1:5050/api/mcq", {
+    const response = await fetch(`${API_URL}/api/mcq`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correct })

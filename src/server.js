@@ -2,9 +2,7 @@ import OpenAI from "openai";
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import fs from "fs";
-
-import { Jimp } from "jimp";
+import { z } from "zod";
 
 dotenv.config();
 
@@ -12,11 +10,9 @@ const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
+const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5051";
+
 const app = express();
-
-app.options("/api/mcq", cors());
-
-app.options("/api/parseTable", cors());
 
 app.use(cors({
     origin: [
@@ -28,6 +24,18 @@ app.use(cors({
 
 // Parses incoming JSON requests into JS objects stored in request.body
 app.use(express.json({ limit: "10mb" }));
+
+const TableRowsSchema = z.array(z.object({
+    // Converts value to target type before checking
+    row: z.coerce.number(),
+    terms: z.record(z.string(), z.coerce.string())
+}));
+
+const NotesItemsSchema = z.array(z.object({
+    question: z.string(),
+    answer: z.string(),
+    category: z.string().optional()
+}));
 
 // Sends correct answer to server and recieves incorrect choices
 app.post("/api/mcq", async(request, response) => {
@@ -55,8 +63,6 @@ app.post("/api/mcq", async(request, response) => {
         .split("\n")
 
         response.json(choices);
-
-        
     }
     catch(error){
         console.error("AI failed, using fallback:", error);
@@ -72,7 +78,7 @@ app.post("/api/parseTable", async(request, response) => {
 
         const base64 = request.body.base64;
 
-        const openCV_response = await fetch("http://127.0.0.1:5051/api/extractCells", {
+        const openCV_response = await fetch(`${FLASK_URL}/api/extractCells`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ base64: base64 })
@@ -113,9 +119,7 @@ app.post("/api/parseTable", async(request, response) => {
         .replace(/```/g, "")
         .trim();
 
-        //console.log("GPT response:", raw);
-
-        const rows = JSON.parse(raw);
+        const rows = TableRowsSchema.parse(JSON.parse(raw));
 
         console.log("GPT response:", rows);
         
@@ -140,92 +144,10 @@ app.post("/api/parseTable", async(request, response) => {
             console.log(`GPT row ${row.row} got ${row.images.length} images`);
         }
 
-        /*
-        // Arrow function
-        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
-    
-        let savedFirstCrop = false;
-
-        for(let row of data){
-            for(let image of row.images){
-    
-                //const croppedImg = userImg.clone();
-                const freshImg = await Jimp.read(Buffer.from(base64, "base64"));
-    
-                const x1 = clamp(image.x1, 0, width);
-                const y1 = clamp(image.y1, 0, height);
-                const x2 = clamp(image.x2, 0, width);
-                const y2 = clamp(image.y2, 0, height);
-
-                console.log("Cropping:", x1, y1, x2-x1, y2-y1);
-
-                // Replaces coordinates with raw image data
-                // Waits for the promise to finish
-               
-                image.data = (await freshImg
-                    .crop({
-                        x: x1,
-                        y: y1,
-                        w: x2 - x1,
-                        h: y2 - y1
-                    })
-                    .getBuffer("image/png")).toString("base64");
-                    
-                console.log("Crop data length:", image.data.length);
-
-                if(!savedFirstCrop){
-                    fs.writeFileSync("test_crop.png", Buffer.from(image.data, "base64"));
-                    savedFirstCrop = true;
-                }
-
-            }
-        }
-        */
-
         response.json(rows);
     }
     catch(error){
         console.error("parseTable failed:", error);
-        response.status(500).json([]);
-    }
-});
-
-app.post("/api/extractCells", async(request, response) => {
-    try{
-        const base64 = request.body.base64;
-
-        const flaskResponse = await fetch("http://127.0.0.1:5051/api/extractCells", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ base64 })
-        })
-
-
-        /* TODO: Merge GPT and Flask response into one JSON Structure
-        {
-            "row": 0,
-            "terms": {
-            "Name": "Cat",
-            "Type": "Mammal"
-            },
-            "images": [
-            {
-                "col": 1,
-                "data": "base64stringhere"
-            }
-            ]
-        }
-        */
-
-        const cells = await flaskResponse.json();
-
-        response.json({cells});
-
-    }
-    catch(error){
-        console.error("extractCells failed:", error);
         response.status(500).json([]);
     }
 });
@@ -269,7 +191,7 @@ app.post("/api/parseNotes", async(request, response) => {
         .replace(/```/g, "")
         .trim();
 
-        const quizItems = JSON.parse(raw);
+        const quizItems = NotesItemsSchema.parse(JSON.parse(raw));
         response.json(quizItems);
 
     }
@@ -279,11 +201,9 @@ app.post("/api/parseNotes", async(request, response) => {
     }
 })
 
-const port = 5050;
+const port = Number(process.env.PORT) || 5050;
 
 // Express app starts running, listens for requests on the port
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 })
-
-

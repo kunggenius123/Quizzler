@@ -1,5 +1,6 @@
 import { buildMCQ, stripText, getCorrectAnswer} from "./tableQuiz";
 import type {QuizItem, TableQuizItem} from "./tableQuiz";
+import { API_URL } from "./config";
 
 // Optional properties
 type TableRowRaw = {
@@ -29,6 +30,17 @@ const checkMarkImgId = document.getElementById("checkMarkImg") as HTMLImageEleme
 const counterId = document.getElementById("counter") as HTMLHeadingElement;
 
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const errorBannerId = document.getElementById("error-banner") as HTMLDivElement;
+
+function showError(message: string): void {
+    errorBannerId.textContent = message;
+    errorBannerId.style.display = "block";
+}
+
+function clearError(): void {
+    errorBannerId.textContent = "";
+    errorBannerId.style.display = "none";
+}
 
 function selectFile(acceptedTypes: string): Promise<File | null> {
     return new Promise(function(resolve) {
@@ -159,6 +171,8 @@ function showHome(): void{
 
     homePageId.style.display = "flex";
     quizPageId.style.display = "none";
+
+    clearError();
 
     console.log("Returned home");
 }
@@ -420,6 +434,7 @@ async function openTable(): Promise<void> {
     if (quizLoading) return;
 
     quizLoading = true;
+    clearError();
 
     console.log("openTable clicked");
     
@@ -436,7 +451,7 @@ async function openTable(): Promise<void> {
         imageLoadingOverlayId.classList.add("active");
         console.log("sending to parseTable");
 
-        const response = await fetch("http://127.0.0.1:5050/api/parseTable", {
+        const response = await fetch(`${API_URL}/api/parseTable`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
 
@@ -446,6 +461,11 @@ async function openTable(): Promise<void> {
 
         console.log("parseTable status:", response.status);
 
+        if (!response.ok) {
+            showError("The server could not parse this table. Please try another image.");
+            return;
+        }
+
         const rows = await response.json() as TableRowRaw[]; 
 
         quizItems = rowsToQuizItems(rows);
@@ -453,7 +473,7 @@ async function openTable(): Promise<void> {
         console.log("Frontend received quiz items:", quizItems.length);
 
         if (!quizItems.length) {
-            console.log("No quiz items parsed from table");
+            showError("No quiz questions could be created from this table. Try a clearer image with a ruled grid.");
             return;
         }
 
@@ -469,6 +489,7 @@ async function openTable(): Promise<void> {
     }
     catch (error) {
         console.error("Error opening file: ", error);
+        showError("Something went wrong while creating the quiz. Make sure the API server is running, then try again.");
     }
     finally {
         imageLoadingOverlayId.classList.remove("active");
@@ -486,6 +507,7 @@ async function openNotes(): Promise<void> {
     if (quizLoading) return;
 
     quizLoading = true;
+    clearError();
 
     try {
         const file = await selectFile(".txt,.md,text/plain");
@@ -494,23 +516,28 @@ async function openNotes(): Promise<void> {
         const notes = await file.text();
 
         if (!notes.trim()) {
-            console.log("Notes file is empty");
+            showError("This notes file is empty.");
             return;
         }
 
         imageLoadingOverlayId.classList.add("active");
 
-        const response = await fetch("http://127.0.0.1:5050/api/parseNotes", {
+        const response = await fetch(`${API_URL}/api/parseNotes`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ notes })
         });
 
+        if (!response.ok) {
+            showError("The server could not create questions from these notes. Please try again.");
+            return;
+        }
+
         const noteItems = await response.json()  as NoteItemRaw[];
         quizItems = notesToQuizItems(noteItems);
 
         if (!quizItems.length) {
-            console.log("No quiz items parsed from notes");
+            showError("No quiz questions could be created from these notes.");
             return;
         }
 
@@ -520,6 +547,7 @@ async function openNotes(): Promise<void> {
     }
     catch (error) {
         console.error("Error opening notes:", error);
+        showError("Something went wrong while creating the quiz. Make sure the API server is running, then try again.");
     }
     finally {
         imageLoadingOverlayId.classList.remove("active");
