@@ -1,0 +1,21 @@
+note1 = {
+    "knowledge_levels": "BST" : 5, "SLL" : 5
+    "qestionScheme" : {
+
+        "question" : null
+        "rightAnswers": null,
+        "wrongAnswers" : null,
+        "img": null,
+        "topic": null
+    }
+}
+
+
+// Database schema for each authenticated user
+"knowledge_levels" : {
+    "note1":
+        "BST" : 5,
+        "SLL" : 5
+    "table1":
+        "DLL" : 3
+}, 

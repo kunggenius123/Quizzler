@@ -1,0 +1,9 @@
+Put notes in, GPT creates a JSON with every question with metadata like the question text but also more importantly the topic/category
+
+the user also gets a "knowledge level" int for each topic that gets added if they get a question right and subtracted if they get a question wrong
+
+HTML topic 
+
+More optimal:
+
+Let GPT create quiz items in the backend by sending a JSON instead of doing it all in the frontend in tableQuiz.ts

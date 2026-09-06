@@ -1,5 +1,17 @@
 import { API_URL } from "./config";
 
+export type ImportedJSON = {
+    "knowledge_levels": {}
+    "questionScheme" : {
+
+        "question" : null
+        "rightAnswers": null,
+        "wrongAnswers" : null,
+        "img": null,
+        "topic": null
+    }
+}
+
 type TableImage = {
     data: string;
 };

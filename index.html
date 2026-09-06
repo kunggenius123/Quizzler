@@ -16,15 +16,23 @@
     <nav class="navbar"> 
         <button type="button" class="nav-logo" onclick="showHome()">Home</button>
 
-        <button type="button" class="nav-upload-button" onclick="openTable()">
+        <button type="button" class="nav-upload-button" onclick="showDropzone('table')">
             Upload Table
         </button>
-        <button type="button" class="nav-notes-button" onclick="openNotes()">
+        <button type="button" class="nav-notes-button" onclick="showDropzone('notes')">
             Upload Notes
         </button>
 
         <input id="file-input" type="file" accept="image/*" style="display:none" />
     </nav>
+
+    <div id="drop-overlay" class="drop-overlay" style="display:none">
+        <div id="dropzone" class="dropzone" tabindex="0">
+            <h2 id="dropzone-title">Drop A File</h2>
+            <p id="dropzone-instructions">Drag/drop your file here, or click to select.</p>
+            <button id="dropzone-cancel" type="button">Cancel</button>
+        </div>
+    </div>
 
     <main>
         <section id="home-page" class="home-page">
@@ -35,6 +43,7 @@
             </p>
         </section>
 
+        <!--attach topic attribute to this-->
         <section id="quiz-page" class="quiz-page">
 
             <div id="error-banner" class="error-banner"></div>

@@ -31,10 +31,122 @@ const counterId = document.getElementById("counter") as HTMLHeadingElement;
 
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const errorBannerId = document.getElementById("error-banner") as HTMLDivElement;
+const tableUploadButton = document.querySelector(".nav-upload-button") as HTMLButtonElement | null;
+const notesUploadButton = document.querySelector(".nav-notes-button") as HTMLButtonElement | null;
+
+// Dropzone DOM elements (incremental feature)
+const dropOverlay = document.getElementById("drop-overlay") as HTMLDivElement | null;
+const dropzone = document.getElementById("dropzone") as HTMLDivElement | null;
+const dropzoneTitle = document.getElementById("dropzone-title") as HTMLHeadingElement | null;
+const dropzoneInstructions = document.getElementById("dropzone-instructions") as HTMLParagraphElement | null;
+const dropzoneCancel = document.getElementById("dropzone-cancel") as HTMLButtonElement | null;
+
+let dropMode: "table" | "notes" | null = null;
+
+function setUploadModeState(mode: "table" | "notes" | null): void {
+    const isTable = mode === "table";
+    const isNotes = mode === "notes";
+
+    if (tableUploadButton) {
+        tableUploadButton.classList.toggle("active", isTable);
+
+        // Sets to true if mode is table
+        tableUploadButton.setAttribute("aria-pressed", String(isTable));
+    }
+
+    if (notesUploadButton) {
+        notesUploadButton.classList.toggle("active", isNotes);
+
+        // Sets to true if mode is notes
+        notesUploadButton.setAttribute("aria-pressed", String(isNotes));
+    }
+}
 
 function showError(message: string): void {
     errorBannerId.textContent = message;
     errorBannerId.style.display = "block";
+}
+
+function showDropzone(mode: "table" | "notes"){
+    dropMode = mode;
+    setUploadModeState(mode);
+    homePageId.style.display = "none";
+    if(!dropOverlay || !dropzone || !dropzoneTitle || !dropzoneInstructions) return;
+    dropzone.classList.remove("dragover");
+    dropzoneTitle.textContent = mode === "table" ? "Drop table image here" : "Drop notes file here";
+    dropzoneInstructions.textContent = mode === "table" ? "Drag and drop an image file here, or click to select." : "Drag and drop a .txt or .md file here, or click to select.";
+    dropOverlay.style.display = "flex";
+    dropzone.focus();
+}
+
+function hideDropzone(showHome: boolean = true){
+    dropMode = null;
+    setUploadModeState(null);
+    if (showHome) {
+        homePageId.style.display = "flex";
+    }
+    if(dropOverlay){
+        dropOverlay.style.display = "none";
+    }
+    if(dropzone){
+        dropzone.classList.remove("dragover");
+    }
+}
+
+async function processSelectedFile(file: File): Promise<void> {
+    if (!dropMode) return;
+
+    const selectedMode = dropMode;
+    hideDropzone(false);
+
+    if (selectedMode === "table") {
+        await openTableWithFile(file);
+    }
+    else if (selectedMode === "notes") {
+        await openNotesWithFile(file);
+    }
+}
+
+if (dropzone) {
+    dropzone.addEventListener("dragover", (event: DragEvent) => {
+        event.preventDefault();
+        dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", async (event: DragEvent) => {
+        event.preventDefault();
+        dropzone.classList.remove("dragover");
+
+        const file = event.dataTransfer?.files?.[0];
+        if (!file) return;
+
+        await processSelectedFile(file);
+    });
+
+    dropzone.addEventListener("click", () => {
+        if (!dropMode) return;
+
+        fileInput.accept = dropMode === "table" ? "image/*" : ".txt,.md,text/plain";
+        fileInput.value = "";
+        fileInput.onchange = async () => {
+            const file = fileInput.files && fileInput.files.length > 0 ? fileInput.files[0] : null;
+            if (file) {
+                await processSelectedFile(file);
+            }
+        };
+
+        fileInput.click();
+    });
+}
+
+if (dropzoneCancel) {
+    dropzoneCancel.addEventListener("click", () => {
+        hideDropzone();
+    });
 }
 
 function clearError(): void {
@@ -155,9 +267,13 @@ function notesToQuizItems(noteItems: NoteItemRaw[]): QuizItem[]{
 }
 
 function showHome(): void{
+    // Ensure any open upload UI is closed when returning home
+    hideDropzone();
+
     quizItems = [];
     currentQuestionIndex = 0;
     counter = 0;
+    setUploadModeState(null);
 
     imageId.src = "";
     counterId.textContent = "Correct: ";
@@ -390,11 +506,8 @@ function nextQuestion(): void{
     frqButtonId.disabled=false;
 }
 
-export async function openImage(): Promise<string | null> {
+async function fileToBase64(file: File): Promise<string | null> {
     try {
-        const file = await selectFile("image/*");
-        if (!file) return null;
-
         if (!file.type.startsWith("image/")) {
             console.error("File is not an image", file.type);
             return null;
@@ -411,9 +524,7 @@ export async function openImage(): Promise<string | null> {
             byteString += String.fromCharCode(byte);
         }
 
-        const base64 = btoa(byteString);
-
-        return base64;
+        return btoa(byteString);
     }
     catch (error) {
         console.error("Error opening image: ", error);
@@ -421,11 +532,17 @@ export async function openImage(): Promise<string | null> {
     }
 }
 
-async function openTable(): Promise<void> {
+export async function openImage(): Promise<string | null> {
+    const file = await selectFile("image/*");
+    if (!file) return null;
 
+    return fileToBase64(file);
+}
+
+async function openTableWithFile(file: File): Promise<void> {
     homePageId.style.display = "none";
     quizPageId.style.display = "grid";
-    
+
     questionDisplayId.style.display = "none";
     imageId.style.display = "block";
     checkMarkImgId.style.visibility = "hidden";
@@ -439,10 +556,12 @@ async function openTable(): Promise<void> {
     console.log("openTable clicked");
     
     try {
-        const base64 = await openImage();
+        if (!file.type.startsWith("image/")) {
+            showError("This file is not an image.");
+            return;
+        }
 
-        console.log("after openImage:", base64 ? base64.length : base64);
-
+        const base64 = await fileToBase64(file);
         if (!base64) {
             console.log("No base64, stopping");
             return;
@@ -466,8 +585,7 @@ async function openTable(): Promise<void> {
             return;
         }
 
-        const rows = await response.json() as TableRowRaw[]; 
-
+        const rows = await response.json() as TableRowRaw[];
         quizItems = rowsToQuizItems(rows);
 
         console.log("Frontend received quiz items:", quizItems.length);
@@ -497,8 +615,15 @@ async function openTable(): Promise<void> {
     }
 }
 
-async function openNotes(): Promise<void> {
-    
+async function openTable(): Promise<void> {
+    const file = await selectFile("image/*");
+    if (file) {
+        await openTableWithFile(file);
+    }
+}
+
+// File already provided (drag and drop)
+async function openNotesWithFile(file: File): Promise<void> {
     homePageId.style.display = "none";
     quizPageId.style.display = "grid";
 
@@ -510,9 +635,6 @@ async function openNotes(): Promise<void> {
     clearError();
 
     try {
-        const file = await selectFile(".txt,.md,text/plain");
-        if (!file) return;
-
         const notes = await file.text();
 
         if (!notes.trim()) {
@@ -533,7 +655,7 @@ async function openNotes(): Promise<void> {
             return;
         }
 
-        const noteItems = await response.json()  as NoteItemRaw[];
+        const noteItems = await response.json() as NoteItemRaw[];
         quizItems = notesToQuizItems(noteItems);
 
         if (!quizItems.length) {
@@ -555,6 +677,14 @@ async function openNotes(): Promise<void> {
     }
 }
 
+// Wait for the user to pick a file 1st
+async function openNotes(): Promise<void> {
+    const file = await selectFile(".txt,.md,text/plain");
+    if (file) {
+        await openNotesWithFile(file);
+    }
+}
+
 // These functions are not global so we have to attach them to window (the object for the whole row)
 // They're not global because this file is type "module" according to the html script
 const globalWindow = window as any;
@@ -563,6 +693,8 @@ globalWindow.nextQuestion = nextQuestion;
 globalWindow.nextImage = nextQuestion;
 globalWindow.openTable = openTable;
 globalWindow.openNotes = openNotes;
+globalWindow.showDropzone = showDropzone;
+globalWindow.hideDropzone = hideDropzone;
 
 globalWindow.loadMode = loadMode;
 globalWindow.showHome = showHome;
