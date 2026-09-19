@@ -1,18 +1,12 @@
 import { buildMCQ, stripText, getCorrectAnswer} from "./tableQuiz";
-import type {QuizItem, TableQuizItem} from "./tableQuiz";
+import type {
+    QuizItem,
+    QuizPayload,
+    QuizQuestion,
+    NotesQuizItem,
+    TableQuizItem
+} from "./tableQuiz";
 import { API_URL } from "./config";
-
-// Optional properties
-type TableRowRaw = {
-    terms?: Record<string, string>;
-    images?: { data: string }[];
-}
-
-type NoteItemRaw = {
-    question: string;
-    answer: string;
-    category?: string;
-};
 
 const homePageId = document.getElementById("home-page") as HTMLElement;
 const quizPageId = document.getElementById("quiz-page") as HTMLElement;
@@ -70,7 +64,12 @@ function showError(message: string): void {
 function showDropzone(mode: "table" | "notes"){
     dropMode = mode;
     setUploadModeState(mode);
+
+    // Clear the previous quiz while the upload dropzone is open.
+    clearQuizState();
     homePageId.style.display = "none";
+    quizPageId.style.display = "none";
+
     if(!dropOverlay || !dropzone || !dropzoneTitle || !dropzoneInstructions) return;
     dropzone.classList.remove("dragover");
     dropzoneTitle.textContent = mode === "table" ? "Drop table image here" : "Drop notes file here";
@@ -206,89 +205,64 @@ function setFrqPrompt(quizItem: QuizItem): void{
         return;
     }
 
-    if(!quizItem.category){
-        frqQuestionId.textContent = "";
-        return;
-    }
-
-    frqQuestionId.textContent = `What is the ${quizItem.category}?`;
+    frqQuestionId.textContent = quizItem.question;
 }
 
-function pickRandomCategory(quizItem: TableQuizItem): void{
-    // Filters out terms that are empty or non-strings
-    const terms: string[] = Object.keys(quizItem.terms).filter(
-        term => typeof quizItem.terms[term] === "string" && quizItem.terms[term].trim() !== ""
-    );
-
-    if(!terms.length){
-        console.error("No valid terms found for quiz item:", quizItem);
-        quizItem.category = null;
-        return;
-    }
-
-    quizItem.category = terms[Math.floor(Math.random() * terms.length)];
-    console.log("Selected term:", quizItem.category, "=", quizItem.terms[quizItem.category]);
-}
-
-function rowsToQuizItems(rows: TableRowRaw[]): QuizItem[]{
-    const items: QuizItem[] = [];
-
-    for(const row of rows){
-        const terms = row.terms || {};
-        
-        // If at least one term is a non-empty string
-        const hasTerm = Object.values(terms).some(
-            value => typeof value === "string" && value.trim() !== ""
-        );
-
-        if(!hasTerm || !(row.images?.length)){
-            continue;
-        }
-
-        items.push({
-            type: "table",
-            terms,
-            images: row.images,
-            category: null,
-        });
-    }
-
-    return items;
-}
-
-function notesToQuizItems(noteItems: NoteItemRaw[]): QuizItem[]{
-    return noteItems.map(item => ({
-        type: "notes",
-        question: item.question,
-        answer: item.answer,
-        category: item.category || "",
-        images: [],
+function tableToQuizItems(questions: QuizQuestion[]): TableQuizItem[] {
+    return questions.map(question => ({
+        ...question,
+        type: "table"
     }));
+}
+
+function notesToQuizItems(questions: QuizQuestion[]): NotesQuizItem[] {
+    return questions.map(question => ({
+        ...question,
+        type: "notes"
+    }));
+}
+
+function clearQuizState(): void {
+    quizItems = [];
+    currentQuestionIndex = 0;
+    counter = 0;
+    currentMode = "mcq";
+
+    imageId.src = "";
+    imageId.style.display = "none";
+    questionDisplayId.textContent = "";
+    questionDisplayId.style.display = "none";
+
+    counterId.textContent = "Correct: ";
+    answerId.textContent = "";
+    frqQuestionId.textContent = "";
+    textBoxId.value = "";
+    checkMarkImgId.style.visibility = "hidden";
+
+    mcqDiv.style.display = "none";
+    frqDiv.style.display = "none";
+
+    mcqButtons.forEach(button => {
+        button.textContent = "";
+        button.disabled = true;
+        button.dataset.correct = "false";
+        button.style.backgroundColor = "";
+        button.style.color = "";
+    });
+
+    imageLoadingOverlayId.classList.remove("active");
+    clearError();
 }
 
 function showHome(): void{
     // Ensure any open upload UI is closed when returning home
     hideDropzone();
 
-    quizItems = [];
-    currentQuestionIndex = 0;
-    counter = 0;
+    clearQuizState();
     setUploadModeState(null);
-
-    imageId.src = "";
-    counterId.textContent = "Correct: ";
-
-    mcqDiv.style.display = "none";
-    frqDiv.style.display = "none";
-
-    answerId.textContent = "";
-    textBoxId.value = "";
-    checkMarkImgId.style.visibility = "hidden";
 
     homePageId.style.display = "flex";
     quizPageId.style.display = "none";
-
-    clearError();
 
     console.log("Returned home");
 }
@@ -308,10 +282,6 @@ function loadMode(mode: string): void{
     }
 
     const quizItem = quizItems[currentQuestionIndex];
-
-    if(quizItem.type === "table" && !quizItem.category){
-        pickRandomCategory(quizItem);
-    }
 
     if(mode == "frq"){
         console.log("Switching to FRQ");
@@ -349,7 +319,7 @@ async function loadMCQ(quizItem: QuizItem): Promise<void>{
         button.style.color = "";
     }
     
-    const mcq = await buildMCQ(quizItem, quizItems);
+    const mcq = await buildMCQ(quizItem);
 
     console.log("Choices: ", mcq.choices);
 
@@ -428,11 +398,12 @@ function checkMCQ(event: MouseEvent): void{
 function checkFRQ(): void{
     
     const quizItem = quizItems[currentQuestionIndex];
-    let strippedName = stripText(getCorrectAnswer(quizItem), true);
-
     let input = stripText(textBoxId.value, true);
+    const isCorrect = quizItem.rightAnswers.some(answer =>
+        stripText(answer, true) === input
+    );
     
-    if(input === strippedName){
+    if(isCorrect){
         console.log("Check");
         checkMarkImgId.src=checkFilename;
         //checkMarkImgId.style.display = "block";
@@ -459,13 +430,16 @@ function displayCurrentQuestion(): void{
 
     if(quizItem.type === "table"){
 
-        if(!quizItem.images.length || !quizItem.category){
-            return;
+        if(quizItem.img){
+            imageId.style.display = "block";
+            questionDisplayId.style.display = "none";
+            imageId.src = `data:image/png;base64,${quizItem.img}`;
         }
-
-        imageId.style.display = "block";
-        questionDisplayId.style.display = "none";
-        imageId.src = `data:image/png;base64,${quizItem.images[0].data}`;
+        else{
+            imageId.style.display = "none";
+            questionDisplayId.style.display = "flex";
+            questionDisplayId.textContent = quizItem.question;
+        }
     }
     else{
         imageId.style.display = "none";
@@ -492,10 +466,6 @@ function nextQuestion(): void{
     }
 
     const quizItem: QuizItem = quizItems[currentQuestionIndex];
-
-    if(quizItem.type === "table"){
-        pickRandomCategory(quizItem);
-    }
 
     displayCurrentQuestion();
 
@@ -585,8 +555,12 @@ async function openTableWithFile(file: File): Promise<void> {
             return;
         }
 
-        const rows = await response.json() as TableRowRaw[];
-        quizItems = rowsToQuizItems(rows);
+        const payload = await response.json() as QuizPayload;
+        if (payload.sourceType !== "table") {
+            throw new Error("Table endpoint returned a non-table quiz payload");
+        }
+
+        quizItems = tableToQuizItems(payload.questions);
 
         console.log("Frontend received quiz items:", quizItems.length);
 
@@ -596,12 +570,6 @@ async function openTableWithFile(file: File): Promise<void> {
         }
 
         currentQuestionIndex = Math.floor(Math.random() * quizItems.length);
-        const quizItem = quizItems[currentQuestionIndex];
-
-        if (quizItem.type === "table") {
-            pickRandomCategory(quizItem);
-        }
-
         displayCurrentQuestion();
         loadMode("mcq");
     }
@@ -655,8 +623,12 @@ async function openNotesWithFile(file: File): Promise<void> {
             return;
         }
 
-        const noteItems = await response.json() as NoteItemRaw[];
-        quizItems = notesToQuizItems(noteItems);
+        const notesPayload = await response.json() as QuizPayload;
+        if (notesPayload.sourceType !== "notes") {
+            throw new Error("Notes endpoint returned a non-notes quiz payload");
+        }
+
+        quizItems = notesToQuizItems(notesPayload.questions);
 
         if (!quizItems.length) {
             showError("No quiz questions could be created from these notes.");

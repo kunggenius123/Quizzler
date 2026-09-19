@@ -1,0 +1,1 @@
+payload - the JSON data sent between the frontend and backend (quizData)

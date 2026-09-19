@@ -1,21 +1,36 @@
-note1 = {
-    "knowledge_levels": "BST" : 5, "SLL" : 5
-    "qestionScheme" : {
-
-        "question" : null
-        "rightAnswers": null,
-        "wrongAnswers" : null,
-        "img": null,
-        "topic": null
+{
+  "quizId": "note1",
+  "sourceType": "notes",
+  "knowledge_levels": {
+    "BST": 1,
+    "SLL": 1
+  },
+  "questions": [
+    {
+      "id": "note1-q1",
+      "question": "What property defines a binary search tree?",
+      "topic": "BST",
+      "rightAnswers": [
+        "Values in the left subtree are smaller and values in the right subtree are larger"
+      ],
+      "wrongAnswers": [
+        "Every node must have exactly two children",
+        "All values are stored in a single linked list"
+      ],
+      "img": null
+    },
+    {
+      "id": "note1-q2",
+      "question": "What does the head pointer of a singly linked list reference?",
+      "topic": "SLL",
+      "rightAnswers": [
+        "The first node in the list"
+      ],
+      "wrongAnswers": [
+        "The last node in the list",
+        "The middle node in the list"
+      ],
+      "img": null
     }
+  ]
 }
-
-
-// Database schema for each authenticated user
-"knowledge_levels" : {
-    "note1":
-        "BST" : 5,
-        "SLL" : 5
-    "table1":
-        "DLL" : 3
-}, 

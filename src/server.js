@@ -3,6 +3,13 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
+import {
+    AnswerSubmissionSchema,
+    QuizPayloadSchema,
+    
+    createInitialKnowledgeLevels
+} from "./server/quizSchema.js";
 
 dotenv.config();
 
@@ -25,58 +32,31 @@ app.use(cors({
 // Parses incoming JSON requests into JS objects stored in request.body
 app.use(express.json({ limit: "10mb" }));
 
-const TableRowsSchema = z.array(z.object({
-    // Converts value to target type before checking
+const TableQuestionItemsSchema = z.array(z.object({
+    
+    // Used only while matching GPT's row to Flask/OpenCV's image crop.
     row: z.coerce.number(),
-    terms: z.record(z.string(), z.coerce.string())
+    question: z.string().trim().min(1),
+    topic: z.string().trim().min(1),
+    rightAnswers: z.array(z.string().trim().min(1)).min(1),
+    wrongAnswers: z.array(z.string().trim().min(1))
 }));
 
 const NotesItemsSchema = z.array(z.object({
-    question: z.string(),
-    answer: z.string(),
-    category: z.string().optional()
+    question: z.string().trim().min(1),
+    topic: z.string().trim().min(1),
+    rightAnswers: z.array(z.string().trim().min(1)).min(1),
+    wrongAnswers: z.array(z.string().trim().min(1))
 }));
 
-// Sends correct answer to server and recieves incorrect choices
-app.post("/api/mcq", async(request, response) => {
-
-    console.log("Request received:", request.body);
-
-    const correct = request.body.correct;
-    
-    const prompt = `You are generating multiple incorrect choices for a quiz. Correct label: "${correct}". 
-    Generate exactly 2 plausible but incorrect alternatives from the same subject matter and of the same type as the correct answer. 
-    Return them as two lines, no numbering, no extra text.`
-    
-    // Trying to use OpenAI, makes sure app doesn't crash when API call fails
-    try{
-        const chatCompletion = await client.chat.completions.create({
-            model : "gpt-4o-mini",
-            messages: [{ role: "user", content: prompt }]
-        })
-
-        const text = chatCompletion.choices[0].message.content;
-
-        console.log(text);
-
-        const choices = text
-        .split("\n")
-
-        response.json(choices);
-    }
-    catch(error){
-        console.error("AI failed, using fallback:", error);
-        response.status(500).json([]);
-    }
-
-});
+const quizzes = new Map();
 
 app.post("/api/parseTable", async(request, response) => {
     console.log("parseTable request received");
 
     try{
 
-        const base64 = request.body.base64;
+        const base64 = z.string().min(1).parse(request.body.base64);
 
         const openCV_response = await fetch(`${FLASK_URL}/api/extractCells`, {
             method: "POST",
@@ -84,7 +64,14 @@ app.post("/api/parseTable", async(request, response) => {
             body: JSON.stringify({ base64: base64 })
         });
 
+        if (!openCV_response.ok) {
+            throw new Error(`Cell extraction failed with status ${openCV_response.status}`);
+        }
+
         const imageCells = await openCV_response.json();
+        const imageRows = [...new Set(
+            imageCells.map(cell => Number(cell.clean_row))
+        )].sort((a, b) => a - b);
 
         const chatCompletion = await client.chat.completions.create({
             model: "gpt-4o",
@@ -97,15 +84,18 @@ app.post("/api/parseTable", async(request, response) => {
                     },
                     {
                         type: "text",
-                        text: `Analyze this table. For each row return the text terms paired with their column headers.
-    
-                        Return ONLY a raw JSON array. No markdown, no code blocks. Start with [ end with ]:
+                        text: `Analyze this table and create one quiz item for each image row.
+
+                        Use only these image row numbers: ${imageRows.join(", ")}.
+
+                        Return ONLY a raw JSON array. No markdown, no code blocks:
                         [
                             {
                                 "row": 0,
-                                "terms": {
-                                    "header_name": "cell value"
-                                }
+                                "question": "question text",
+                                "topic": "specific topic or concept",
+                                "rightAnswers": ["correct answer"],
+                                "wrongAnswers": ["plausible wrong answer", "another plausible wrong answer"]
                             }
                         ]`
                     }
@@ -114,14 +104,20 @@ app.post("/api/parseTable", async(request, response) => {
             max_tokens: 1000
         });
         
-        const raw = chatCompletion.choices[0].message.content
+        const content = chatCompletion.choices[0].message.content;
+
+        if (!content) {
+            throw new Error("OpenAI returned an empty table response");
+        }
+
+        const raw = content
         .replace(/```json/g, "")
         .replace(/```/g, "")
         .trim();
 
-        const rows = TableRowsSchema.parse(JSON.parse(raw));
+        const generatedItems = TableQuestionItemsSchema.parse(JSON.parse(raw));
 
-        console.log("GPT response:", rows);
+        console.log("GPT table questions:", generatedItems);
         
         console.log("OpenCV image cells:", imageCells.map(c => ({
             clean_row: c.clean_row,
@@ -130,21 +126,41 @@ app.post("/api/parseTable", async(request, response) => {
             imageLength: c.image?.length
         })));
         
-        for (const row of rows) {
+        const quizId = `table-${randomUUID()}`;
 
-            // Gets images row by row, filter compares row numbers
-            const images = imageCells.filter(cell => Number(cell.clean_row) === Number(row.row));
+        // flatMap transforms each item and flattens one level of the array in case it's nested
+        const questions = generatedItems.flatMap((item, index) => {
 
-            // Sorts images from left to right
-            // Takes the image crop given by extract_cells, attaches it to the corresponding row
-            row.images = images
-                .sort((a, b) => Number(a.col) - Number(b.col))
-                .map(cell => ({ data: cell.image }));
+            // GPT's row number is matched to the cleaned row number from Flask.
+            const imageCell = imageCells
+                .filter(cell => Number(cell.clean_row) === Number(item.row))
+                .sort((a, b) => Number(a.col) - Number(b.col))[0];
 
-            console.log(`GPT row ${row.row} got ${row.images.length} images`);
-        }
+            if (!imageCell?.image) {
+                console.warn(`Skipping table row ${item.row}: no image crop matched`);
+                return [];
+            }
 
-        response.json(rows);
+            return [{
+                id: `${quizId}-q${index + 1}`,
+                question: item.question,
+                topic: item.topic,
+                rightAnswers: item.rightAnswers,
+                wrongAnswers: item.wrongAnswers,
+                img: imageCell.image
+            }];
+        });
+
+        const payload = QuizPayloadSchema.parse({
+            quizId,
+            sourceType: "table",
+            knowledge_levels: createInitialKnowledgeLevels(questions),
+            questions
+        });
+
+        quizzes.set(payload.quizId, payload);
+
+        response.json(payload);
     }
     catch(error){
         console.error("parseTable failed:", error);
@@ -153,9 +169,10 @@ app.post("/api/parseTable", async(request, response) => {
 });
 
 app.post("/api/parseNotes", async(request, response) => {
+    console.log("parseNotes request received");
     try{
         
-        const notes = request.body.notes;
+        const notes = z.string().trim().min(1).parse(request.body.notes);
         const prompt = `
                         Convert these study notes accurately into quiz items.
 
@@ -163,18 +180,22 @@ app.post("/api/parseNotes", async(request, response) => {
 
                         Each item should have this structure:
                         [
-                        {
-                            "question": "question text",
-                            "answer": "answer text",
-                            "category": "topic or term"
-                        }
+                            {
+                                "question": "question text",
+                                "topic": "specific topic or concept",
+                                "rightAnswers": ["correct answer"],
+                                "wrongAnswers": ["plausible wrong answer", "another plausible wrong answer"]
+                            }
                         ]
 
                         Rules:
-                        - Make clear study questions, no duplicates.
-                        - Answers should be short.
-                        - Generate 5 to 10 items if possible.
-                        - Do not invent facts unsupported by the notes.
+                        - Generate 5–10 unique, clear questions when supported.
+                        - Assign each question one specific, consistently named topic.
+                        - Include at least one concise right answer.
+                        - Include 2 plausible wrong answers when supported.
+                        - Use information from the notes; do not invent facts.
+                        - Return only these fields: question, topic, rightAnswers, and wrongAnswers.
+                        - Do not generate IDs; the backend will add them.
 
                         Notes:
                         ${notes}
@@ -186,18 +207,101 @@ app.post("/api/parseNotes", async(request, response) => {
             max_tokens: 1000
         });
 
-        const raw = chatCompletion.choices[0].message.content
+
+
+        const content = chatCompletion.choices[0].message.content;
+
+        if (!content) {
+            throw new Error("OpenAI returned an empty notes response");
+        }
+
+        const raw = content
         .replace(/```json/g, "")
         .replace(/```/g, "")
         .trim();
 
-        const quizItems = NotesItemsSchema.parse(JSON.parse(raw));
-        response.json(quizItems);
+        const generatedItems = NotesItemsSchema.parse(JSON.parse(raw));
+
+        console.log("GPT notes questions:", generatedItems);
+
+        // Creates a random unique ID for the quiz
+        const quizId = `note-${randomUUID()}`;
+
+        const questions = generatedItems.map((item, index) => ({
+            // Creates a question ID by attaching an index to the quiz ID
+            id: `${quizId}-q${index + 1}`,
+            ...item,
+            img: null
+        }));
+
+        const payload = QuizPayloadSchema.parse({
+            quizId,
+            sourceType: "notes",
+            knowledge_levels: createInitialKnowledgeLevels(questions),
+            questions
+        });
+
+        quizzes.set(payload.quizId, payload);
+
+        response.json(payload);
+        
 
     }
     catch(error){
         console.error("parseNotes failed:", error);
         response.status(500).json([]);
+    }
+})
+
+app.post("/api/answers", async(request, response) => {
+    try{
+        const answer = AnswerSubmissionSchema.parse(request.body);
+        
+        const quiz = quizzes.get(answer.quizId);
+        if(!quiz){
+            return response.status(400).json({
+                error: "Quiz not found"
+            })
+        }
+
+        const question = quiz.questions.find(
+            question => question.id === answer.questionId
+        );
+
+        if (!question) {
+            return response.status(404).json({
+                error: "Question not found"
+            });
+        }
+
+        // Boolean checking if the user's answer matches at least one of the acceptable answers
+        const correct = question.rightAnswers.some(
+            rightAnswer =>
+            rightAnswer.trim().toLowerCase() === answer.selectedAnswer.trim().toLowerCase()
+        );
+
+        // If knowledge level missing set it to 1
+        const currentLevel = quiz.knowledge_levels[question.topic] ?? 1;
+
+        /* If correct, knowledge level increments
+           If incorrect, knowledge level decrements (Math.max() prevents level from going below 1)*/
+        quiz.knowledge_levels[question.topic] = correct
+            ? currentLevel + 1
+            : Math.max(1, currentLevel - 1);
+
+        response.json({
+            quizId: answer.quizId,
+            questionId: answer.questionId,
+            correct,
+            knowledge_level: quiz.knowledge_levels[question.topic]
+        });
+
+    }
+    catch(error){
+        console.error("Answer submission failed:", error);
+        response.status(400).json({
+            error: "Invalid answer submission"
+        });
     }
 })
 
