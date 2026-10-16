@@ -49,6 +49,9 @@ const NotesItemsSchema = z.array(z.object({
     wrongAnswers: z.array(z.string().trim().min(1))
 }));
 
+const MIN_KNOWLEDGE_LEVEL = 1;
+const MAX_KNOWLEDGE_LEVEL = 5;
+
 const quizzes = new Map();
 
 app.post("/api/parseTable", async(request, response) => {
@@ -189,14 +192,13 @@ app.post("/api/parseNotes", async(request, response) => {
                         ]
 
                         Rules:
-                        - Generate 5–10 unique, clear questions when supported.
-                        - Assign each question one specific, consistently named topic.
-                        - Include at least one concise right answer.
-                        - Include 2 plausible wrong answers when supported.
-                        - Use information from the notes; do not invent facts.
-                        - Return only these fields: question, topic, rightAnswers, and wrongAnswers.
-                        - Do not generate IDs; the backend will add them.
-
+                            - Generate 5–10 unique, clear questions when supported.
+                            - Assign each question one specific, consistently named main-concept topic and one unambiguous correct concept.
+                            - Use only facts stated in the notes; omit uncertain, ambiguous, or unsupported items.
+                            - Preserve each fact’s qualifiers, conditions, relationships, and scope; rightAnswers must match or directly paraphrase it. Do not infer, generalize, reverse, or correct.
+                            - Include at least one concise right answer and up to two plausible distractors when supported; distractors must be wrong for that question.
+                            - Return only question, topic, rightAnswers, and wrongAnswers; do not generate IDs.
+                        
                         Notes:
                         ${notes}
                         `;
@@ -259,7 +261,7 @@ app.post("/api/answers", async(request, response) => {
         
         const quiz = quizzes.get(answer.quizId);
         if(!quiz){
-            return response.status(400).json({
+            return response.status(404).json({
                 error: "Quiz not found"
             })
         }
@@ -284,17 +286,22 @@ app.post("/api/answers", async(request, response) => {
         const currentLevel = quiz.knowledge_levels[question.topic] ?? 1;
 
         /* If correct, knowledge level increments
-           If incorrect, knowledge level decrements (Math.max() prevents level from going below 1)*/
+           If incorrect, knowledge level decrements 
+           Math.max() prevents level from going below 1, Math.min() prevents level from exceeding 5
+        */
         quiz.knowledge_levels[question.topic] = correct
-            ? currentLevel + 1
-            : Math.max(1, currentLevel - 1);
+            ? Math.min(MAX_KNOWLEDGE_LEVEL, currentLevel + 1)
+            : Math.max(MIN_KNOWLEDGE_LEVEL, currentLevel - 1);
 
         response.json({
             quizId: answer.quizId,
             questionId: answer.questionId,
             correct,
-            knowledge_level: quiz.knowledge_levels[question.topic]
+            knowledge_level: quiz.knowledge_levels[question.topic],
+            knowledge_levels: quiz.knowledge_levels
         });
+
+      
 
     }
     catch(error){

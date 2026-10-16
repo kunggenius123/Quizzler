@@ -11,10 +11,12 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "start": "node src/server.js",
     "server": "nodemon src/server.js",
-    "dev": "vite"
+    "dev": "vite",
+    "opencv": ".venv/bin/python src/extract_cells.py",
+    "dev:all": "concurrently -k -n FRONTEND,BACKEND,OPENCV \"npm run dev\" \"npm run server\" \"npm run opencv\""
   },
   "repository": {
     "type": "git",
@@ -29,6 +31,7 @@
   },
   "homepage": "https://github.com/kunggenius123/Quizzler#readme",
   "devDependencies": {
+    "concurrently": "^10.0.6",
     "typescript": "^6.0.3",
     "vite": "^8.0.14"
   }

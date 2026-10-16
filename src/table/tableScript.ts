@@ -1,4 +1,4 @@
-import { buildMCQ, stripText, getCorrectAnswer} from "./tableQuiz";
+import { buildMCQ, stripText, getCorrectAnswer, chooseNextQuestion} from "./tableQuiz";
 import type {
     QuizItem,
     QuizPayload,
@@ -10,6 +10,9 @@ import { API_URL } from "./config";
 
 const homePageId = document.getElementById("home-page") as HTMLElement;
 const quizPageId = document.getElementById("quiz-page") as HTMLElement;
+const progressPageId = document.getElementById("progress-page") as HTMLElement;
+const progressListId = document.getElementById("progress-list") as HTMLDivElement;
+const progressEmptyId = document.getElementById("progress-empty") as HTMLParagraphElement;
 
 const imageId = document.getElementById("image") as HTMLImageElement;
 const imageLoadingOverlayId = document.getElementById("image-loading-overlay") as HTMLDivElement;
@@ -36,6 +39,24 @@ const dropzoneInstructions = document.getElementById("dropzone-instructions") as
 const dropzoneCancel = document.getElementById("dropzone-cancel") as HTMLButtonElement | null;
 
 let dropMode: "table" | "notes" | null = null;
+
+const checkFilename: string = "images/checkmark.png";
+const xFilename: string = "images/x_mark.png";
+
+let quizItems: QuizItem[] = [];
+
+let quizLoading: boolean = false;
+
+let currentMode: string = "mcq";
+
+let currentQuestionIndex: number = 0;
+
+let counter: number = 0;
+
+let currentQuizId: string | null = null;
+
+let knowledgeLevels: Record<string, number> = {};
+
 
 function setUploadModeState(mode: "table" | "notes" | null): void {
     const isTable = mode === "table";
@@ -69,6 +90,7 @@ function showDropzone(mode: "table" | "notes"){
     clearQuizState();
     homePageId.style.display = "none";
     quizPageId.style.display = "none";
+    progressPageId.style.display = "none";
 
     if(!dropOverlay || !dropzone || !dropzoneTitle || !dropzoneInstructions) return;
     dropzone.classList.remove("dragover");
@@ -177,19 +199,6 @@ function selectFile(acceptedTypes: string): Promise<File | null> {
     });
 }
 
-const checkFilename: string = "images/checkmark.png";
-const xFilename: string = "images/x_mark.png";
-
-let quizItems: QuizItem[] = [];
-
-let quizLoading: boolean = false;
-
-let currentMode: string = "mcq";
-
-let currentQuestionIndex: number = 0;
-
-let counter: number = 0;
-
 const mcqButtons = document.querySelectorAll<HTMLButtonElement>(".choice");
 for(let i = 0; i < mcqButtons.length; i++){
     mcqButtons[i].addEventListener("click", checkMCQ);
@@ -224,6 +233,7 @@ function notesToQuizItems(questions: QuizQuestion[]): NotesQuizItem[] {
 
 function clearQuizState(): void {
     quizItems = [];
+    currentQuizId = null;
     currentQuestionIndex = 0;
     counter = 0;
     currentMode = "mcq";
@@ -263,6 +273,7 @@ function showHome(): void{
 
     homePageId.style.display = "flex";
     quizPageId.style.display = "none";
+    progressPageId.style.display = "none";
 
     console.log("Returned home");
 }
@@ -300,6 +311,18 @@ function loadMode(mode: string): void{
 
         loadMCQ(quizItem);
     }
+}
+
+function showProgress(): void{
+    hideDropzone(false);
+
+    setUploadModeState(null);
+
+    homePageId.style.display = "none";
+    quizPageId.style.display = "none";
+    progressPageId.style.display = "block";
+
+    console.log("Progress loaded");
 }
 
 let mcqAnsweredCorrect = false; 
@@ -352,76 +375,95 @@ async function loadMCQ(quizItem: QuizItem): Promise<void>{
 } 
 
 // Event listener automatically passes in event parameter
-function checkMCQ(event: MouseEvent): void{
+async function checkMCQ(event: MouseEvent): Promise<void>{
     
     const button = event.currentTarget as HTMLButtonElement | null;
 
     if(!button) return;
 
-    console.log("Button Clicked: ", button.textContent);
+    
+    const selectedAnswer = button.textContent?.trim() ?? "";
 
-    if(button.dataset.correct === "true"){
-        
-        console.log("Correct:", button.textContent);
+    try{
+        const correct = await submitAnswer(selectedAnswer);
 
-        if(!mcqAnsweredCorrect){
-            counter++;
-            counterId.textContent=`Correct: ${counter}`;
-            answerId.textContent = "";
+        if(correct){
             
-            mcqAnsweredCorrect = true; 
+            console.log("Correct:", selectedAnswer);
 
+            if(!mcqAnsweredCorrect){
+                counter++;
+                counterId.textContent=`Correct: ${counter}`;
+                answerId.textContent = "";
+                
+                mcqAnsweredCorrect = true; 
+
+                
+            }
+
+            checkMarkImgId.src=checkFilename;
+            
+        }
+        else{
+            console.log("Incorrect:", selectedAnswer);
+            checkMarkImgId.src=xFilename;
             
         }
 
-        checkMarkImgId.src=checkFilename;
-        
+        checkMarkImgId.style.visibility = "visible";
+
+        mcqButtons.forEach(button => {
+            button.disabled = true;
+            if(button.dataset.correct === "true"){
+                button.style.backgroundColor = "white";
+                button.style.color = "black";
+            }
+        })
     }
-    else{
-
-        checkMarkImgId.src=xFilename;
-        
+    catch(error){
+        console.error("Could not submit answer:", error);
+        showError("Your answer could not be submitted");
     }
 
-    checkMarkImgId.style.visibility = "visible";
-
-    mcqButtons.forEach(button => {
-        button.disabled = true;
-        if(button.dataset.correct === "true"){
-            button.style.backgroundColor = "white";
-            button.style.color = "black";
-        }
-    })
     
 } 
 
-function checkFRQ(): void{
+async function checkFRQ(): Promise<void>{
     
     const quizItem = quizItems[currentQuestionIndex];
-    let input = stripText(textBoxId.value, true);
-    const isCorrect = quizItem.rightAnswers.some(answer =>
-        stripText(answer, true) === input
-    );
+
+    const input = textBoxId.value.trim();
     
-    if(isCorrect){
-        console.log("Check");
-        checkMarkImgId.src=checkFilename;
-        //checkMarkImgId.style.display = "block";
+    try{
+        const isCorrect = await submitAnswer(input);
+    
+        if(isCorrect){
+            console.log("Check");
+            checkMarkImgId.src=checkFilename;
+            //checkMarkImgId.style.display = "block";
+            
+            counter++;
+            counterId.textContent=`Correct: ${counter}`;
+            answerId.textContent = "";
+
+        }
+        else{
+            console.log("X");
+            checkMarkImgId.src=xFilename;
+            //checkMarkImgId.style.display = "block";
+            answerId.textContent = getCorrectAnswer(quizItem);
+        }
+
         checkMarkImgId.style.visibility = "visible";
-        counter++;
-        counterId.textContent=`Correct: ${counter}`;
-        answerId.textContent = "";
+        frqButtonId.disabled=true;
 
     }
-    else{
-        console.log("X");
-        checkMarkImgId.src=xFilename;
-        //checkMarkImgId.style.display = "block";
-        checkMarkImgId.style.visibility = "visible";
-        answerId.textContent = getCorrectAnswer(quizItem);
+    catch(error){
+        console.error("Could not submit answer:", error);
+        showError("Your answer could not be submitted");
     }
-
-    frqButtonId.disabled=true;
+    
+    
     
 } 
 
@@ -458,19 +500,18 @@ function nextQuestion(): void{
 
     if (!quizItems.length) return;
   
-    if(currentQuestionIndex >= quizItems.length - 1){
-        currentQuestionIndex = 0;
-    }
-    else{
-        currentQuestionIndex++;
-    }
+    const currentQuestionId = quizItems[currentQuestionIndex].id;
 
-    const quizItem: QuizItem = quizItems[currentQuestionIndex];
+    const nextQuizItem = chooseNextQuestion(quizItems, knowledgeLevels, currentQuestionId);
+
+    if(!nextQuizItem) return;
+
+    currentQuestionIndex = quizItems.indexOf(nextQuizItem);
 
     displayCurrentQuestion();
 
     if(currentMode === "mcq"){
-        loadMCQ(quizItems[currentQuestionIndex]);
+        loadMCQ(nextQuizItem);
     }
 
     frqButtonId.disabled=false;
@@ -502,6 +543,7 @@ async function fileToBase64(file: File): Promise<string | null> {
     }
 }
 
+
 export async function openImage(): Promise<string | null> {
     const file = await selectFile("image/*");
     if (!file) return null;
@@ -509,9 +551,20 @@ export async function openImage(): Promise<string | null> {
     return fileToBase64(file);
 }
 
+/* Helper function that opens the file picker
+   Drag/drop calls openTableWithFile() directly */
+
+async function openTable(): Promise<void> {
+    const file = await selectFile("image/*");
+    if (file) {
+        await openTableWithFile(file);
+    }
+}
+
 async function openTableWithFile(file: File): Promise<void> {
     homePageId.style.display = "none";
     quizPageId.style.display = "grid";
+    progressPageId.style.display = "none";
 
     questionDisplayId.style.display = "none";
     imageId.style.display = "block";
@@ -555,12 +608,16 @@ async function openTableWithFile(file: File): Promise<void> {
             return;
         }
 
-        const payload = await response.json() as QuizPayload;
-        if (payload.sourceType !== "table") {
+        const tablePayload = await response.json() as QuizPayload;
+        if (tablePayload.sourceType !== "table") {
             throw new Error("Table endpoint returned a non-table quiz payload");
         }
 
-        quizItems = tableToQuizItems(payload.questions);
+        knowledgeLevels = tablePayload.knowledge_levels;
+
+        currentQuizId = tablePayload.quizId;
+
+        quizItems = tableToQuizItems(tablePayload.questions);
 
         console.log("Frontend received quiz items:", quizItems.length);
 
@@ -583,17 +640,19 @@ async function openTableWithFile(file: File): Promise<void> {
     }
 }
 
-async function openTable(): Promise<void> {
-    const file = await selectFile("image/*");
+/* Helper function that opens the file picker
+   Drag/drop calls openNotesWithFile() directly */
+async function openNotes(): Promise<void> {
+    const file = await selectFile(".txt,.md,text/plain");
     if (file) {
-        await openTableWithFile(file);
+        await openNotesWithFile(file);
     }
 }
 
-// File already provided (drag and drop)
 async function openNotesWithFile(file: File): Promise<void> {
     homePageId.style.display = "none";
     quizPageId.style.display = "grid";
+    progressPageId.style.display = "none";
 
     checkMarkImgId.style.visibility = "hidden";
 
@@ -628,6 +687,9 @@ async function openNotesWithFile(file: File): Promise<void> {
             throw new Error("Notes endpoint returned a non-notes quiz payload");
         }
 
+        knowledgeLevels = notesPayload.knowledge_levels;
+
+        currentQuizId = notesPayload.quizId;
         quizItems = notesToQuizItems(notesPayload.questions);
 
         if (!quizItems.length) {
@@ -649,12 +711,35 @@ async function openNotesWithFile(file: File): Promise<void> {
     }
 }
 
-// Wait for the user to pick a file 1st
-async function openNotes(): Promise<void> {
-    const file = await selectFile(".txt,.md,text/plain");
-    if (file) {
-        await openNotesWithFile(file);
+
+async function submitAnswer(selectedAnswer: string): Promise<boolean>{
+    const quizItem = quizItems[currentQuestionIndex];
+
+    // Makes sure there's an active quiz
+    if (!currentQuizId) {
+        throw new Error("No active quiz ID");
     }
+
+    // Sends answer to /api/answers
+    const response = await fetch(`${API_URL}/api/answers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            quizId: currentQuizId,
+            questionId: quizItem.id,
+            selectedAnswer
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Answer submission failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    knowledgeLevels = result.knowledge_levels;
+
+    return result.correct;
 }
 
 // These functions are not global so we have to attach them to window (the object for the whole row)
@@ -670,3 +755,4 @@ globalWindow.hideDropzone = hideDropzone;
 
 globalWindow.loadMode = loadMode;
 globalWindow.showHome = showHome;
+globalWindow.showProgress = showProgress;

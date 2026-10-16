@@ -22,6 +22,9 @@
         <button type="button" class="nav-notes-button" onclick="showDropzone('notes')">
             Upload Notes
         </button>
+        <button type="button" class="nav-progress-button" onclick="showProgress()">
+            Progress
+        </button>
 
         <input id="file-input" type="file" accept="image/*" style="display:none" />
     </nav>
@@ -107,6 +110,20 @@
             </div>
 
         </section>
+
+        <section id="progress-page" class="progress-page">
+            <h1>Progress</h1>
+
+            <div class="progress-headings">
+                <span>Topic</span>
+                <span>Knowledge Level</span>
+            </div>
+
+            <div id="progress-list"></div>
+
+            <p id="progress-empty">No topic progress available.</p>
+        </section>
+
     </main>
 
 </body>

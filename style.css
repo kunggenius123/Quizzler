@@ -14,6 +14,7 @@
 
 .nav-logo,
 .nav-upload-button,
+.nav-progress-button,
 .version-buttons,
 .image-loading-overlay,
 #frq-question, #counter {
@@ -53,7 +54,7 @@ main {
     z-index: 20;
 
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: repeat(4, 1fr);
     align-items: center;
     padding: 0 3%;
     box-sizing: border-box;
@@ -64,7 +65,8 @@ main {
 
 .nav-logo,
 .nav-upload-button,
-.nav-notes-button {
+.nav-notes-button,
+.nav-progress-button {
     transition: color 180ms ease, text-shadow 180ms ease, background-color 180ms ease, transform 180ms ease, opacity 180ms ease;
 }
 
@@ -80,7 +82,8 @@ main {
     cursor: pointer;
 }
 
-.nav-notes-button{
+.nav-notes-button,
+.nav-progress-button {
     background: none;
     border: none;
     color: var(--color-metallic-gold);
@@ -128,9 +131,15 @@ main {
     grid-column: 3;
 }
 
+.nav-progress-button {
+    justify-self: end;
+    grid-column: 4;
+}
+
 .nav-logo:hover,
 .nav-notes-button:hover,
-.nav-upload-button:hover {
+.nav-upload-button:hover,
+.nav-progress-button:hover {
     text-shadow:
         0 0 2px #d4af37,
         0 0 6px #b8860b;
@@ -336,6 +345,24 @@ main {
     color: var(--color-metallic-gold);
     font-weight: 700;
     cursor: pointer;
+}
+
+.progress-page {
+    display: none;
+    padding: 2rem 8%;
+    color: var(--color-royal-purple);
+}
+
+.progress-page h1 {
+    margin-top: 0;
+    font-family: "Cinzel", serif;
+    font-size: 2.5rem;
+}
+
+.progress-headings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    font-weight: bold;
 }
 
 #counter {

@@ -90,3 +90,34 @@ export function buildMCQ(item: QuizItem): MCQResult{
     return{answer, choices, answerIndex};
 
 }
+
+
+export function chooseNextQuestion(
+    items: QuizItem[],
+    knowledgeLevels: Record<string, number>,
+    currentQuestionId: string
+): QuizItem | undefined {
+
+    if (!items.length) return undefined;
+
+    const otherItems = items.filter(
+        item => item.id !== currentQuestionId
+    );
+
+    // A one-question quiz must reuse its only question.
+    const selectableItems = otherItems.length ? otherItems : items;
+
+    const lowestLevel = Math.min(...selectableItems.map(
+        item => knowledgeLevels[item.topic] ?? 1
+    ));
+
+    /* All topics start at level 1, so once a user becomes familiar with a topic
+    the others get chosen */
+    const candidates = selectableItems.filter(
+        item => (knowledgeLevels[item.topic] ?? 1) === lowestLevel
+    );
+
+    return candidates[Math.floor(Math.random() * candidates.length)];
+
+
+}

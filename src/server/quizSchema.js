@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const NonEmptyString = z.string().trim().min(1);
 
+export const MIN_KNOWLEDGE_LEVEL = 1;
+export const MAX_KNOWLEDGE_LEVEL = 5;
+
 export const QuizQuestionSchema = z.object({
     id: NonEmptyString,
     question: NonEmptyString,
@@ -39,4 +42,18 @@ export function createInitialKnowledgeLevels(questions, initialLevel = 1) {
     }
 
     return levels;
+}
+
+export function updateKnowledgeLevel(currentLevel, correct) {
+    return correct
+        ? Math.min(MAX_KNOWLEDGE_LEVEL, currentLevel + 1)
+        : Math.max(MIN_KNOWLEDGE_LEVEL, currentLevel - 1);
+}
+
+export function isAnswerCorrect(rightAnswers, selectedAnswer) {
+    const normalizedSelection = selectedAnswer.trim().toLowerCase();
+
+    return rightAnswers.some(
+        rightAnswer => rightAnswer.trim().toLowerCase() === normalizedSelection
+    );
 }
